@@ -1,0 +1,90 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Install docker.
+#
+# This role installs docker and configures it as a service.
+#
+###
+---
+
+- name: Install docker
+  yum: name=docker-engine state=present
+
+- name: Write docker daemon settings file
+  template: backup=yes dest=/etc/sysconfig/docker group=root mode=0644 owner=root src=docker.sysconfig.j2
+  notify:
+    - Restart docker
+
+- name: Create docker daemon systemd unit directory
+  file: path=/etc/systemd/system/docker.service.d state=directory mode=0755
+
+- name: Override docker daemon systemd unit
+  template: dest=/etc/systemd/system/docker.service.d/50-docker-opts.conf group=root mode=0644 owner=root src=50-docker-opts.conf.j2
+  notify:
+    - Reload systemd
+    - Restart docker
+
+- name: Create docker config directory
+  file:
+    dest: /root/.docker
+    state: directory
+    owner: root
+    group: root
+    mode: 0750
+
+- name: Link all certs to local config directory
+  file:
+    src: "{{ item.file }}"
+    dest: "/root/.docker/{{ item.name }}"
+    owner: root
+    group: root
+    state: link
+  with_items:
+    - { name: "cert.pem", file: "/etc/kubernetes/ssl/{{ inventory_hostname }}.crt" }
+    - { name: "key.pem", file: "/etc/kubernetes/ssl/{{ inventory_hostname }}.key" }
+    - { name: "ca.pem", file: "/etc/kubernetes/ssl/ca.crt" }
+
+- name: Create directories for all base docker registry
+  file:
+    dest: "/etc/docker/certs.d/{{ dr_clusterip }}:5000"
+    state: directory
+    owner: root
+    group: root
+    mode: 0750
+
+- name: Provide certificates for base repositories
+  file:
+    src: "{{ item.file }}"
+    dest: "/etc/docker/certs.d/{{ dr_clusterip }}:5000/{{ item.name }}"
+    owner: root
+    group: root
+    state: link
+  with_items:
+    - { name: "client.cert", file: "/etc/kubernetes/ssl/{{ inventory_hostname }}.crt" }
+    - { name: "client.key", file: "/etc/kubernetes/ssl/{{ inventory_hostname }}.key" }
+    - { name: "ca.pem", file: "/etc/kubernetes/ssl/ca.crt" }
+  notify:
+    - Reload systemd
+    - Restart docker
+
+- name: Enable and start docker
+  service:
+    name: docker
+    enabled: yes
+    state: started

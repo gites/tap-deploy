@@ -1,0 +1,361 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-small"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "5120",
+                  "volume_name": "couchdb16-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": [],
+                "containers": [
+                  {
+                    "name": "couchdb-16",
+                    "image": "$repository_uri/frodenas/couchdb",
+                    "ports": [
+                      {
+                        "containerPort": 5984,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "COUCHDB_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-couchdb-16-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "COUCHDB_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-couchdb-16-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "COUCHDB_DBNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-couchdb-16-credentials",
+                            "key": "dbname"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "volumeMounts": [
+                      {
+                        "name": "couchdb16-persistent-storage",
+                        "mountPath": "/data"
+                      },
+                      {
+                        "name": "couchdb16-persistent-storage",
+                        "mountPath": "/usr/local/var/log/couchdb"
+                      },
+                      {
+                        "name": "couchdb16-persistent-storage",
+                        "mountPath": "/usr/local/etc/couchdb"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "1Gi"
+                      },
+                      "limits": {
+                        "memory": "1Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        },
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-medium"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "51200",
+                  "volume_name": "couchdb16-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": [],
+                "containers": [
+                  {
+                    "name": "couchdb-16",
+                    "image": "$repository_uri/frodenas/couchdb",
+                    "ports": [
+                      {
+                        "containerPort": 5984,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "COUCHDB_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-couchdb-16-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "COUCHDB_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-couchdb-16-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "COUCHDB_DBNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-couchdb-16-credentials",
+                            "key": "dbname"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "volumeMounts": [
+                      {
+                        "name": "couchdb16-persistent-storage",
+                        "mountPath": "/data"
+                      },
+                      {
+                        "name": "couchdb16-persistent-storage",
+                        "mountPath": "/usr/local/var/log/couchdb"
+                      },
+                      {
+                        "name": "couchdb16-persistent-storage",
+                        "mountPath": "/usr/local/etc/couchdb"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "4Gi"
+                      },
+                      "limits": {
+                        "memory": "4Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "name": "syslog",
+                "protocol": "TCP",
+                "port": 5984,
+                "targetPort": 0,
+                "nodePort": 0
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-couchdb-16-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "username": "$base64-$random1",
+            "password": "$base64-$random2",
+            "dbname": "$base64-$random3"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "couchdb-16",
+    "description": "Document-oriented NoSQL database.",
+    "metadata":[
+      {"key": "displayName", "value": "CouchDB 1.6"},
+      {"key": "imageUrl", "value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAAA5FBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3QSvSEbAAAAS3RSTlMAAAEDBgkKCxATFRoeICUpMjQ1Nzg/QUZHSFVcXWBjcHh7foCCiI2Ql5ibnqyvsLG3usHCyMrLzNLa2+Dj5OXs7vDx8vX3+Pv8/f6V8ZhxAAABEElEQVR4Xu3WWU/CQBRA4RE3RHBnXFDrgtZ9bV3ADRBpe/7//3E6TVOMSaeEGNT0PN/v5SY3uWJsiH41znGOhW7tPiBrL3vj2sR43WeQTr/gBwZrvg9PgrdUzNisC5t9uAgtkTkbtkaBc1xY3T2ArlUrZ5Er29YNXOwsazx1TRRe3Uinr4g7KSh8SFLNhI9IshR+hXM77A5uDXaiC8f7YZfwqDA8R2AOmgZchiehKwEhjknFjJOR4nf8ZqVXT8Hmfgx37PTOUrBxYQvD4MpocI7/9GH4tGc0XiRLnZLGG+Ar7MBHM+wdGrahBngtVRtwFJY+cb2qMFTtEedLhYV0Ih64UhiTbhBRR4p/+4flOMefpAXbmjbAmFwAAAAASUVORK5CYII="},
+      {"key": "longDescription", "value": "Document-oriented NoSQL database."},
+      {"key": "providerDisplayName", "value": "Ferran Rodenas"},
+      {"key": "documentationUrl", "value":  "https://github.com/frodenas/docker-couchdb/blob/master/README.md"},
+      {"key": "supportUrl", "value": "https://github.com/frodenas/docker-couchdb"}
+    ],
+    "bindable": true,
+    "tags": [
+      "couchdb",
+      "document-database",
+      "nosql-database",
+      "database"
+    ],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated CouchDB 1.6 server. Resources used: 1 compute node, 1 GB RAM and 5 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      },
+      {
+        "name": "single-medium",
+        "description": "Create dedicated CouchDB 1.6 server. Resources used: 1 compute node, 4 GB RAM and 50 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

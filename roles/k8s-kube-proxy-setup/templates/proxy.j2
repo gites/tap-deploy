@@ -1,0 +1,2 @@
+KUBE_PROXY_ADDRESS="--bind-address=0.0.0.0"
+KUBE_PROXY_ARGS="--proxy-mode=iptables --kubeconfig=/etc/kubernetes/kubeconfig --proxy-port-range=33333-39666 --cluster-cidr={{ flannel_ip_range }} --masquerade-all"

@@ -1,0 +1,61 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Setup Kerberos clients.
+#
+# Install Kerberos dependencies.
+# Fill in configuration.
+#
+###
+---
+
+- name: install KRB5 base and unzip
+  yum: 
+    pkg: "{{ item }}" 
+    state: installed
+  with_items:
+    - unzip
+    - krb5-workstation
+    - krb5-pkinit
+
+- name: copy krb5.conf
+  template: src=krb5.j2 dest=/etc/krb5.conf
+
+- name: Fetch krb5kdc cacert
+  slurp:
+    src: /var/kerberos/krb5kdc/cacert.pem
+  register: krb_cacert
+  delegate_to: "{{ groups['cdh-manager'][0] }}"
+
+- name: Create cacert client config
+  copy:
+    dest: /etc/krb5.cacert.pem
+    content: "{{ krb_cacert.content | b64decode }}"
+    mode: 0644
+
+- name: Download and unzip unlimited strength local policy
+  unarchive: src="{{ repo_host }}/files/UnlimitedJCEPolicyJDK8.zip" dest="/tmp" copy=no creates=/tmp/UnlimitedJCEPolicyJDK8
+  register: jce
+
+- name: Copy unlimited strength local policy file
+  command: cp /tmp/UnlimitedJCEPolicyJDK8/local_policy.jar /usr/java/jdk1.8.0_72/jre/lib/security/local_policy.jar
+  when: jce.changed
+
+- name: Copy unlimited strength US export policy file
+  command: cp /tmp/UnlimitedJCEPolicyJDK8/US_export_policy.jar /usr/java/jdk1.8.0_72/jre/lib/security/US_export_policy.jar
+  when: jce.changed

@@ -1,0 +1,877 @@
+{
+  "services": [
+    {
+      "plans": [
+        {
+          "cost": "free",
+          "description": "Create dedicated Jupyter Notebook server in a setup tailored for small loads. Resources used: 1 compute node, 2 GB RAM and 1 GB of exclusively allocated persistent storage for keeping users' workbooks only.",
+          "name": "single-small"
+        },
+        {
+          "cost": "free",
+          "description": "Create dedicated Jupyter Notebook server in a setup tailored for medium loads. Resources used: 1 compute node, 8 GB RAM and 1 GB of exclusively allocated persistent storage for keeping users' workbooks only.",
+          "name": "single-medium"
+        }
+      ],
+      "tags": [
+        "jupyter",
+        "notebook",
+        "data-science",
+        "tools"
+      ],
+      "bindable": true,
+      "metadata": [
+        {
+          "value": "Jupyter",
+          "key": "displayName"
+        },
+        {
+          "value": "",
+          "key": "imageUrl"
+        },
+        {
+          "value": "Docker container for the [SciPy stack](../scipystack) and configured Jupyter notebook server.",
+          "key": "longDescription"
+        },
+        {
+          "value": "",
+          "key": "providerDisplayName"
+        },
+        {
+          "value": "http://ipython.org/documentation.html",
+          "key": "documentationUrl"
+        },
+        {
+          "value": "https://github.com/ipython/ipython/wiki/Frequently-asked-questions",
+          "key": "supportUrl"
+        }
+      ],
+      "description": "Interactive data science and scientific computing facility across over 40 programming languages.",
+      "name": "jupyter"
+    }
+  ],
+  "template": {
+    "hooks": {
+      "deprovision": {
+        "spec": {
+          "containers": [
+            {
+              "command": [
+                "delclient.sh"
+              ],
+              "imagePullPolicy": "IfNotPresent",
+              "env": [
+                {
+                  "valueFrom": {
+                    "configMapKeyRef": {
+                      "key": "uaa-uri-mrp-fqdn",
+                      "name": "sso"
+                    }
+                  },
+                  "name": "UAA_ADDRESS"
+                },
+                {
+                  "valueFrom": {
+                    "configMapKeyRef": {
+                      "key": "authorization-uri",
+                      "name": "sso"
+                    }
+                  },
+                  "name": "UAA_AUTHORIZATION_URI"
+                },
+                {
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "key": "admin.client.id",
+                      "name": "uaa-secrets"
+                    }
+                  },
+                  "name": "ADMIN_CLIENT_ID"
+                },
+                {
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "key": "admin.client.secret",
+                      "name": "uaa-secrets"
+                    }
+                  },
+                  "name": "ADMIN_CLIENT_SECRET"
+                },
+                {
+                  "value": "$random1",
+                  "name": "OAUTH_CLIENT_ID"
+                }
+              ],
+              "image": "$repository_uri/curljob:alpine.3.4.7",
+              "name": "curljob"
+            }
+          ],
+          "restartPolicy": "Never"
+        },
+        "metadata": {
+          "labels": {
+            "instance_id": "$instance_id",
+            "managed_by": "TAP"
+          },
+          "name": "del-client-$idx_and_short_instance_id"
+        },
+        "apiVersion": "v1",
+        "kind": "Pod"
+      },
+      "provision": {
+        "spec": {
+          "containers": [
+            {
+              "command": [
+                "addclient.sh"
+              ],
+              "imagePullPolicy": "IfNotPresent",
+              "env": [
+                {
+                  "valueFrom": {
+                    "configMapKeyRef": {
+                      "key": "uaa-uri-mrp-fqdn",
+                      "name": "sso"
+                    }
+                  },
+                  "name": "UAA_ADDRESS"
+                },
+                {
+                  "valueFrom": {
+                    "configMapKeyRef": {
+                      "key": "authorization-uri",
+                      "name": "sso"
+                    }
+                  },
+                  "name": "UAA_AUTHORIZATION_URI"
+                },
+                {
+                  "value": "$tap_protocol://$instance_name-80.$domain_name",
+                  "name": "REDIRECT_URI"
+                },
+                {
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "key": "admin.client.id",
+                      "name": "uaa-secrets"
+                    }
+                  },
+                  "name": "ADMIN_CLIENT_ID"
+                },
+                {
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "key": "admin.client.secret",
+                      "name": "uaa-secrets"
+                    }
+                  },
+                  "name": "ADMIN_CLIENT_SECRET"
+                },
+                {
+                  "value": "$random1",
+                  "name": "OAUTH_CLIENT_ID"
+                },
+                {
+                  "value": "$random2",
+                  "name": "OAUTH_CLIENT_SECRET"
+                },
+                {
+                  "value" :"$created_by",
+                  "name" : "USER_NAME"
+                }
+              ],
+              "image": "$repository_uri/curljob:alpine.3.4.7",
+              "name": "curljob"
+            }
+          ],
+          "restartPolicy": "Never"
+        },
+        "metadata": {
+          "labels": {
+            "instance_id": "$instance_id",
+            "managed_by": "TAP"
+          },
+          "name": "uaac-register-$idx_and_short_instance_id"
+        },
+        "apiVersion": "v1",
+        "kind": "Pod"
+      }
+    },
+    "body": [
+      {
+        "ingresses": [
+          {
+            "spec": {
+              "rules": [
+                {
+                  "http": {
+                    "paths": [
+                      {
+                        "backend": {
+                          "servicePort": 80,
+                          "serviceName": "jupyter-$idx_and_short_instance_id"
+                        },
+                        "path": "/"
+                      }
+                    ]
+                  },
+                  "host": "$instance_name-80.$domain_name"
+                }
+              ]
+            },
+            "metadata": {
+              "labels": {
+                "space": "$space",
+                "instance_name": "$instance_name",
+                "instance_id": "$instance_id",
+                "org": "$org",
+                "managed_by": "TAP",
+                "offering_id": "$offering_id",
+                "plan_id": "$plan_id"
+              },
+              "name": "jupyter-$idx_and_short_instance_id",
+              "annotations": {
+                "useExternalSsl": "$use_external_ssl"
+              }
+            },
+            "kind": "Ingress",
+            "apiVersion": "extensions/v1beta1"
+          }
+        ],
+        "serviceAccounts": [
+          {
+            "secrets": null,
+            "metadata": {
+              "labels": {
+                "space": "$space",
+                "instance_name": "$instance_name",
+                "instance_id": "$instance_id",
+                "org": "$org",
+                "managed_by": "TAP",
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "offering_id": "$offering_id",
+                "plan_id": "$plan_id"
+              },
+              "creationTimestamp": null,
+              "name": "$idx_and_short_instance_id"
+            },
+            "apiVersion": "extensions/v1beta1",
+            "kind": "ServiceAccount"
+          }
+        ],
+        "services": [
+          {
+            "status": {
+              "loadBalancer": {}
+            },
+            "spec": {
+              "selector": {
+                "instance_id": "$instance_id"
+              },
+              "ports": [
+                {
+                  "targetPort": 8080,
+                  "port": 80,
+                  "protocol": "TCP"
+                }
+              ],
+              "type": "ClusterIP"
+            },
+            "metadata": {
+              "labels": {
+                "space": "$space",
+                "instance_name": "$instance_name",
+                "instance_id": "$instance_id",
+                "org": "$org",
+                "managed_by": "TAP",
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "offering_id": "$offering_id",
+                "plan_id": "$plan_id"
+              },
+              "creationTimestamp": null,
+              "name": "jupyter-$idx_and_short_instance_id"
+            },
+            "apiVersion": "v1",
+            "kind": "Service"
+          }
+        ],
+        "deployments": [
+          {
+            "status": {},
+            "spec": {
+              "strategy": {},
+              "template": {
+                "spec": {
+                  "serviceAccountName": "",
+                  "dnsPolicy": "ClusterFirst",
+                  "restartPolicy": "Always",
+                  "containers": [
+                    {
+                      "volumeMounts": [
+                        {
+                          "mountPath": "/root/conf",
+                          "name": "mrp-volume"
+                        },
+                        {
+                          "subPath": "yarn-site.xml",
+                          "mountPath": "/etc/hadoop/conf/yarn-site.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "core-site.xml",
+                          "mountPath": "/etc/hadoop/conf/core-site.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "hadoop-env.sh",
+                          "mountPath": "/etc/hadoop/conf/hadoop-env.sh",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "hdfs-site.xml",
+                          "mountPath": "/etc/hadoop/conf/hdfs-site.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "log4j.properties",
+                          "mountPath": "/etc/hadoop/conf/log4j.properties",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "mapred-site.xml",
+                          "mountPath": "/etc/hadoop/conf/mapred-site.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "ssl-client.xml",
+                          "mountPath": "/etc/hadoop/conf/ssl-client.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "topology.map",
+                          "mountPath": "/etc/hadoop/conf.cloudera.YARN/topology.map",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "topology.py",
+                          "mountPath": "/etc/hadoop/conf.cloudera.YARN/topology.py",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "mountPath": "/tmp/conf/entrypoint/",
+                          "name": "mrp-volume"
+                        },
+                        {
+                          "mountPath": "/tmp",
+                          "name": "token-volume"
+                        },
+                        {
+                          "subPath": "krb5.cacert.pem",
+                          "mountPath": "/etc/krb5.cacert.pem",
+                          "name": "krb-cacert-volume"
+                        },
+                        {
+                          "subPath": "krb5.conf",
+                          "mountPath": "/etc/krb5.conf",
+                          "name": "krb-conf-volume"
+                        },
+                        {
+                          "mountPath": "/home/vcap/jupyter",
+                          "name": "jupyter-small-storage"
+                        }
+                      ],
+                      "imagePullPolicy": "IfNotPresent",
+                      "resources": {
+                        "requests": {
+                          "memory": "2Gi"
+                        },
+                        "limits": {
+                          "memory": "2Gi"
+                        }
+                      },
+                      "env": [
+                        {
+                          "value": "TAP",
+                          "name": "MANAGED_BY"
+                        },
+                        {
+                          "value": "/tmp/krb5cc",
+                          "name": "KRB5CCNAME"
+                        },
+                        {
+                          "value": "/etc/hadoop/conf",
+                          "name": "HADOOP_CONF_DIR"
+                        },
+                        {
+                          "value": "TAP",
+                          "name": "MANAGED_BY"
+                        },
+                        {
+                          "value": "-Dtap.default.homedir=/org/$org/user",
+                          "name": "SPARK_SUBMIT_OPTS"
+                        }
+                      ],
+                      "ports": [
+                        {
+                          "protocol": "TCP",
+                          "containerPort": 8888
+                        }
+                      ],
+                      "image": "$repository_uri/jupyter:$tap_version",
+                      "name": "jupyter"
+                    },
+                    {
+                      "imagePullPolicy": "IfNotPresent",
+                      "env": [
+                        {
+                          "value": "TAP",
+                          "name": "MANAGED_BY"
+                        },
+                        {
+                          "value": "/tmp/krb5cc",
+                          "name": "KRB5CCNAME"
+                        },
+                        {
+                          "value": "$random1",
+                          "name": "OAUTH_CLIENT_ID"
+                        },
+                        {
+                          "value": "$random2",
+                          "name": "OAUTH_CLIENT_SECRET"
+                        },
+                        {
+                          "value": "secret_phrase",
+                          "name": "SESSION_ID_SEED"
+                        },
+                        {
+                          "valueFrom": {
+                            "configMapKeyRef": {
+                              "key": "uaa-uri-mrp-fqdn",
+                              "name": "sso"
+                            }
+                          },
+                          "name": "UAA_ADDRESS"
+                        },
+                        {
+                          "valueFrom": {
+                            "configMapKeyRef": {
+                              "key": "authorization-uri",
+                              "name": "sso"
+                            }
+                          },
+                          "name": "UAA_AUTHORIZATION_URI"
+                        },
+                        {
+                          "value": "$created_by",
+                          "name": "USER_ID"
+                        }
+                      ],
+                      "ports": [
+                        {
+                          "protocol": "TCP",
+                          "containerPort": 8080
+                        }
+                      ],
+                      "volumeMounts": [
+                        {
+                          "mountPath": "/root/conf",
+                          "name": "mrp-volume"
+                        },
+                        {
+                          "subPath": "krb5.cacert.pem",
+                          "mountPath": "/etc/krb5.cacert.pem",
+                          "name": "krb-cacert-volume"
+                        },
+                        {
+                          "subPath": "krb5.conf",
+                          "mountPath": "/etc/krb5.conf",
+                          "name": "krb-conf-volume"
+                        },
+                        {
+                          "mountPath": "/tmp",
+                          "name": "token-volume"
+                        },
+                        {
+                          "subPath": "topology.map",
+                          "mountPath": "/etc/hadoop/conf.cloudera.YARN/topology.map",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "topology.py",
+                          "mountPath": "/etc/hadoop/conf.cloudera.YARN/topology.py",
+                          "name": "hadoop-conf-volume"
+                        }
+                      ],
+                      "resources": {
+                        "requests": {
+                          "memory": "100M"
+                        },
+                        "limits": {
+                          "memory": "500M"
+                        }
+                      },
+                      "image": "$repository_uri/micro-reverse-proxy:$tap_version",
+                      "name": "micro-reverse-proxy"
+                    }
+                  ],
+                  "volumes": [
+                    {
+                      "configMap": {
+                        "name": "mrp-jupyter-conf"
+                      },
+                      "name": "mrp-volume"
+                    },
+                    {
+                      "secret": {
+                        "secretName": "kerberos-cacert"
+                      },
+                      "name": "krb-cacert-volume"
+                    },
+                    {
+                      "configMap": {
+                        "name": "kerberos-config"
+                      },
+                      "name": "krb-conf-volume"
+                    },
+                    {
+                      "configMap": {
+                        "name": "yarn-conf"
+                      },
+                      "name": "hadoop-conf-volume"
+                    },
+                    {
+                      "emptyDir": {},
+                      "name": "token-volume"
+                    }
+                  ]
+                },
+                "metadata": {
+                  "annotations": {
+                    "volume_name": "jupyter-small-storage",
+                    "volume_size_mb": "1024",
+                    "volume_read_only": "false"
+                  },
+                  "labels": {
+                    "instance_id": "$instance_id",
+                    "managed_by": "TAP",
+                    "idx_and_short_instance_id": "$idx_and_short_instance_id"
+                  }
+                }
+              },
+              "selector": {
+                "matchLabels": {
+                  "instance_id": "$instance_id",
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id"
+                }
+              },
+              "replicas": 1
+            },
+            "metadata": {
+              "annotations": {
+                "plan_names": "single-small"
+              },
+              "labels": {
+                "space": "$space",
+                "instance_id": "$instance_id",
+                "org": "$org",
+                "managed_by": "TAP",
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "offering_id": "$offering_id",
+                "plan_id": "$plan_id"
+              },
+              "name": "jupyter-$idx_and_short_instance_id"
+            },
+            "apiVersion": "extensions/v1beta1",
+            "kind": "Deployment"
+          },
+          {
+            "status": {},
+            "spec": {
+              "strategy": {},
+              "template": {
+                "spec": {
+                  "serviceAccountName": "",
+                  "dnsPolicy": "ClusterFirst",
+                  "restartPolicy": "Always",
+                  "containers": [
+                    {
+                      "volumeMounts": [
+                        {
+                          "mountPath": "/root/conf",
+                          "name": "mrp-volume"
+                        },
+                        {
+                          "subPath": "yarn-site.xml",
+                          "mountPath": "/etc/hadoop/conf/yarn-site.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "core-site.xml",
+                          "mountPath": "/etc/hadoop/conf/core-site.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "hadoop-env.sh",
+                          "mountPath": "/etc/hadoop/conf/hadoop-env.sh",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "hdfs-site.xml",
+                          "mountPath": "/etc/hadoop/conf/hdfs-site.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "log4j.properties",
+                          "mountPath": "/etc/hadoop/conf/log4j.properties",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "mapred-site.xml",
+                          "mountPath": "/etc/hadoop/conf/mapred-site.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "ssl-client.xml",
+                          "mountPath": "/etc/hadoop/conf/ssl-client.xml",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "topology.map",
+                          "mountPath": "/etc/hadoop/conf.cloudera.YARN/topology.map",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "topology.py",
+                          "mountPath": "/etc/hadoop/conf.cloudera.YARN/topology.py",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "mountPath": "/tmp/conf/entrypoint/",
+                          "name": "mrp-volume"
+                        },
+                        {
+                          "mountPath": "/tmp",
+                          "name": "token-volume"
+                        },
+                        {
+                          "subPath": "krb5.cacert.pem",
+                          "mountPath": "/etc/krb5.cacert.pem",
+                          "name": "krb-cacert-volume"
+                        },
+                        {
+                          "subPath": "krb5.conf",
+                          "mountPath": "/etc/krb5.conf",
+                          "name": "krb-conf-volume"
+                        },
+                        {
+                          "mountPath": "/home/vcap/jupyter",
+                          "name": "jupyter-medium-storage"
+                        }
+                      ],
+                      "imagePullPolicy": "IfNotPresent",
+                      "resources": {
+                        "requests": {
+                          "memory": "8Gi"
+                        },
+                        "limits": {
+                          "memory": "8Gi"
+                        }
+                      },
+                      "env": [
+                        {
+                          "value": "TAP",
+                          "name": "MANAGED_BY"
+                        },
+                        {
+                          "value": "/tmp/krb5cc",
+                          "name": "KRB5CCNAME"
+                        },
+                        {
+                          "value": "/etc/hadoop/conf",
+                          "name": "HADOOP_CONF_DIR"
+                        },
+                        {
+                          "value": "TAP",
+                          "name": "MANAGED_BY"
+                        }
+                      ],
+                      "ports": [
+                        {
+                          "protocol": "TCP",
+                          "containerPort": 8888
+                        }
+                      ],
+                      "image": "$repository_uri/jupyter:$tap_version",
+                      "name": "jupyter"
+                    },
+                    {
+                      "imagePullPolicy": "IfNotPresent",
+                      "env": [
+                        {
+                          "value": "TAP",
+                          "name": "MANAGED_BY"
+                        },
+                        {
+                          "value": "/tmp/krb5cc",
+                          "name": "KRB5CCNAME"
+                        },
+                        {
+                          "value": "$random1",
+                          "name": "OAUTH_CLIENT_ID"
+                        },
+                        {
+                          "value": "$random2",
+                          "name": "OAUTH_CLIENT_SECRET"
+                        },
+                        {
+                          "value": "secret_phrase",
+                          "name": "SESSION_ID_SEED"
+                        },
+                        {
+                          "valueFrom": {
+                            "configMapKeyRef": {
+                              "key": "uaa-uri-mrp-fqdn",
+                              "name": "sso"
+                            }
+                          },
+                          "name": "UAA_ADDRESS"
+                        },
+                        {
+                          "valueFrom": {
+                            "configMapKeyRef": {
+                              "key": "authorization-uri",
+                              "name": "sso"
+                            }
+                          },
+                          "name": "UAA_AUTHORIZATION_URI"
+                        },
+                        {
+                          "value": "$created_by",
+                          "name": "USER_ID"
+                        }
+                      ],
+                      "ports": [
+                        {
+                          "protocol": "TCP",
+                          "containerPort": 8080
+                        }
+                      ],
+                      "volumeMounts": [
+                        {
+                          "mountPath": "/root/conf",
+                          "name": "mrp-volume"
+                        },
+                        {
+                          "subPath": "krb5.cacert.pem",
+                          "mountPath": "/etc/krb5.cacert.pem",
+                          "name": "krb-cacert-volume"
+                        },
+                        {
+                          "subPath": "krb5.conf",
+                          "mountPath": "/etc/krb5.conf",
+                          "name": "krb-conf-volume"
+                        },
+                        {
+                          "mountPath": "/tmp",
+                          "name": "token-volume"
+                        },
+                        {
+                          "subPath": "topology.map",
+                          "mountPath": "/etc/hadoop/conf.cloudera.YARN/topology.map",
+                          "name": "hadoop-conf-volume"
+                        },
+                        {
+                          "subPath": "topology.py",
+                          "mountPath": "/etc/hadoop/conf.cloudera.YARN/topology.py",
+                          "name": "hadoop-conf-volume"
+                        }
+                      ],
+                      "resources": {
+                        "requests": {
+                          "memory": "100M"
+                        },
+                        "limits": {
+                          "memory": "500M"
+                        }
+                      },
+                      "image": "$repository_uri/micro-reverse-proxy:$tap_version",
+                      "name": "micro-reverse-proxy"
+                    }
+                  ],
+                  "volumes": [
+                    {
+                      "configMap": {
+                        "name": "mrp-jupyter-conf"
+                      },
+                      "name": "mrp-volume"
+                    },
+                    {
+                      "secret": {
+                        "secretName": "kerberos-cacert"
+                      },
+                      "name": "krb-cacert-volume"
+                    },
+                    {
+                      "configMap": {
+                        "name": "kerberos-config"
+                      },
+                      "name": "krb-conf-volume"
+                    },
+                    {
+                      "configMap": {
+                        "name": "yarn-conf"
+                      },
+                      "name": "hadoop-conf-volume"
+                    },
+                    {
+                      "emptyDir": {},
+                      "name": "token-volume"
+                    }
+                  ]
+                },
+                "metadata": {
+                  "annotations": {
+                    "volume_name": "jupyter-medium-storage",
+                    "volume_size_mb": "1024",
+                    "volume_read_only": "false"
+                  },
+                  "labels": {
+                    "instance_id": "$instance_id",
+                    "managed_by": "TAP",
+                    "idx_and_short_instance_id": "$idx_and_short_instance_id"
+                  }
+                }
+              },
+              "selector": {
+                "matchLabels": {
+                  "instance_id": "$instance_id",
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id"
+                }
+              },
+              "replicas": 1
+            },
+            "metadata": {
+              "annotations": {
+                "plan_names": "single-medium"
+              },
+              "labels": {
+                "space": "$space",
+                "instance_id": "$instance_id",
+                "org": "$org",
+                "managed_by": "TAP",
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "offering_id": "$offering_id",
+                "plan_id": "$plan_id"
+              },
+              "name": "jupyter-$idx_and_short_instance_id"
+            },
+            "apiVersion": "extensions/v1beta1",
+            "kind": "Deployment"
+          }
+        ],
+        "persistentVolumeClaims": null,
+        "componentType": "instance"
+      }
+    ]
+  }
+}

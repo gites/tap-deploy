@@ -1,0 +1,136 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+###########################################
+## Don't change anything below this line ##
+###########################################
+
+#### Ceph OSDs minimal settings
+# see http://docs.ceph.com/docs/jewel/rados/configuration/osd-config-ref/#journal-settings
+ceph_minimal_journal_size: 5120 # OSD journal size in MB
+ceph_minimal_replicas: "{{ groups['osds'] | length > 1 }}"
+ceph_minimal_node_conf:
+  global:
+    osd pool default size: "{{ ceph_minimal_replicas|int + 1 }}"
+    osd pool default min size: 1
+    osd pool default pg num: "{{ ((groups['osds'] | length * 100) / (ceph_minimal_replicas|int + 1))|int }}"
+    osd pool default pgp num: "{{ ((groups['osds'] | length * 100) / (ceph_minimal_replicas|int + 1))|int }}"
+    journal zero on create: True
+ceph_minimal_pg: "{{ ((groups['osds'] | length * 100) / (ceph_minimal_replicas|int + 1)) | int }}"
+
+#### Ceph OSDs normal settings
+# see http://docs.ceph.com/docs/jewel/rados/configuration/osd-config-ref/#journal-settings
+ceph_normal_journal_size: 20480 # OSD journal size in MB
+ceph_normal_replicas: "{% if groups['osds']|length <= 1 %}1{% elif groups['osds']|length == 2 %}2{% else %}3{% endif %}"
+ceph_normal_node_conf:
+  global:
+    osd pool default size: "{{ ceph_normal_replicas|int }}"
+    osd pool default min size: 1
+    osd pool default pg num: "{{ ((ceph_devices_count|int * 100) / (ceph_normal_replicas|int ))|int }}"
+    osd pool default pgp num: "{{ ((ceph_devices_count|int * 100) / (ceph_normal_replicas|int ))|int }}"
+    journal zero on create: True
+ceph_normal_pg: "{{ ((ceph_devices_count|int * 100) / (ceph_normal_replicas|int))|int }}"
+
+###################
+# DISTRO SETTINGS #
+###################
+
+centos_package_dependencies:
+  - python-pycurl
+  - hdparm
+  - ntp
+  - python-setuptools
+  - libselinux-python
+
+ceph_origin: 'distro'
+ceph_stable_redhat_distro: el7
+
+ceph_custom: true
+ceph_custom_repo: http://localhost:80/yum
+
+
+######################
+# CEPH CONFIGURATION #
+######################
+
+## Ceph options
+
+cephx: true
+max_open_files: 131072
+
+monitor_interface: "{{ ansible_default_ipv4.interface  }}"
+#monitor_address: 0.0.0.0
+
+
+ansible_network_address:  "{{ ansible_default_ipv4.network }}/{{ ansible_default_ipv4.netmask }}"
+ansible_public_network: "{{ ansible_network_address|ipaddr('prefix')  }}"
+public_network: "{{ ansible_default_ipv4.network }}/{{ ansible_public_network }}"
+
+# Change when using dedicated backend network
+#cluster_network: "{{ public_network }}"
+
+
+#############
+# OS TUNING #
+#############
+
+disable_transparent_hugepage: true
+os_tuning_params:
+  - { name: kernel.pid_max, value: 4194303 }
+  - { name: fs.file-max, value: 26234859 }
+  - { name: vm.zone_reclaim_mode, value: 0 }
+  - { name: vm.vfs_cache_pressure, value: 50 }
+  - { name: vm.swappiness, value: 10 }
+  - { name: vm.min_free_kbytes, value: "{{ vm_min_free_kbytes }}" }
+
+
+##################
+# Temporary Vars #
+##################
+# NOTE(SamYaple): These vars are set here to they are defined before use. They
+# should be removed after a refactor has properly seperated all the checks into
+# the appropriate roles.
+
+bluestore: False
+dmcrypt_journal_collocation: False
+dmcrypt_dedicated_journal: False
+osd_auto_discovery: False
+
+######################
+# Kubernetes Volumes #
+######################
+# vol_factor is responsible for adjusting size of volumens
+# name: name_of_rbd_image; size: size_of_volumen_in_mb
+
+vol_factor: 128
+vol_list:
+  - { name: blob-store, size: 40 }
+  - { name: etcdcatalog, size: 4 }
+  - { name: grafana-store, size: 10 }
+  - { name: model-catalog-mongo, size: 4 }
+  - { name: model-catalog-artifacts, size: 8 }
+  - { name: template-repository, size: 4 }
+  - { name: uaa-postgres, size: 10 }
+  - { name: ca-service, size: 1 }
+  - { name: key-counter-redis, size: 1 }
+  - { name: request-store, size: 4 }
+  - { name: data-catalog-store, size: 4 }
+  - { name: user-management-redis, size: 1 }
+  - { name: prometheus-store, size: 48 }
+  - { name: platform-tests-mongo, size: 8 }
+  - { name: docker-registry-store, size: 250 }

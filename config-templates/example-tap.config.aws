@@ -1,0 +1,113 @@
+---
+
+tap_domain_name: "{{ hostvars[groups['k8s-master'][0]].ansible_ssh }}.xip.io"
+smtp_host: 127.0.0.1
+smtp_password: password
+smtp_port: 25
+smtp_protocol: smtp
+smtp_username: username
+upgrade_kernel: False
+kernel_version: kernel
+
+aws_jumpbox_key_name: deploy-jumpbox
+aws_cluster_key_name: deploy-cluster
+aws_jumpbox_key_destination: .ssh/deploy-jumpbox.pem
+aws_cluster_key_destination: .ssh/deploy-cluster.pem
+
+aws_availability_zone: us-east-1a
+aws_region: us-east-1
+aws_base_resource_tags: {Environment: "Some env", Project: "TAP"}
+
+env_name: tap-cluster
+
+dns_isolation: False
+dns:
+  - 8.8.8.8
+  - 8.8.4.4
+
+instances:
+  jumpbox:
+    user: centos
+    type: largex
+    connection:
+      type: local
+    roles:
+      - jumpbox
+  compute-master:
+    user: centos
+    type: largex
+    storage:
+      system-partition-size: 400
+      devices:
+        - device: /dev/xvdb
+          size: 400
+    connection:
+      type: ssh-key
+    roles:
+      - compute-master
+      - storage-master
+      - storage-worker
+      - zabbix-master
+  compute-worker-0:
+    user: centos
+    type: largex
+    connection:
+      type: ssh-key
+    roles:
+      - compute-worker
+  compute-worker-1:
+    user: centos
+    type: largex
+    connection:
+      type: ssh-key
+    roles:
+      - compute-worker
+  compute-worker-2:
+    user: centos
+    type: largex
+    connection:
+      type: ssh-key
+    roles:
+      - compute-worker
+  hadoop-manager:
+    user: centos
+    type: largex2
+    connection:
+      type: ssh-key
+    roles:
+      - hadoop-master-controller
+  hadoop-master-0:
+    user: centos
+    type: largex
+    connection:
+      type: ssh-key
+    roles:
+      - hadoop-master-primary
+  hadoop-master-1:
+    user: centos
+    type: largex
+    connection:
+      type: ssh-key
+    roles:
+      - hadoop-master-secondary
+  hadoop-worker-0:
+    user: centos
+    type: largex
+    connection:
+      type: ssh-key
+    roles:
+      - hadoop-worker
+  hadoop-worker-1:
+    user: centos
+    type: largex
+    connection:
+      type: ssh-key
+    roles:
+      - hadoop-worker
+  hadoop-worker-2:
+    user: centos
+    type: largex
+    connection:
+      type: ssh-key
+    roles:
+      - hadoop-worker

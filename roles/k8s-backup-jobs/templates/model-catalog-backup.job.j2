@@ -1,0 +1,31 @@
+apiVersion: extensions/v1beta1
+kind: Job
+metadata:
+  name: "model-catalog-backup"
+spec:
+  template:
+    metadata:
+      name: model-catalog-backup
+      labels:
+        backup: model-catalog-backup
+    spec:
+      containers:
+        - name: mongo
+          image: "{{ repository_uri }}/mongo:3.3.12"
+          command: ["uptime"]
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+          - mountPath: /data/db
+            name: model-catalog-mongo-backup
+      volumes:
+      - name: model-catalog-mongo-backup
+        rbd:
+          monitors: {{ rbd_monitors }}
+          pool: rbd
+          image: model-catalog-mongo-backup
+          user: admin
+          secretRef:
+            name: ceph-secret
+          fsType: ext4
+          readOnly: false
+      restartPolicy: "Never"

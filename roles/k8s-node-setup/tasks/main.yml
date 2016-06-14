@@ -1,0 +1,71 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Basic kubernetes host initialization.
+#
+###
+---
+
+- name: Create kubernetes group
+  group:
+    name: kube
+    system: yes
+
+- name: Create kubernetes user
+  user:
+    name: kube
+    system: yes
+    group: kube
+    home: /
+    shell: /sbin/nologin
+    comment: Kubernetes user
+
+- name: Write kubernetes systemd-tmpfiles config files
+  copy:
+    dest: /etc/tmpfiles.d/kubernetes.conf
+    src: kubernetes-tmpfiles.conf
+
+- name: Make kubernetes tmp directory
+  file:
+    path: /run/kubernetes
+    state: directory
+    owner: kube
+    group: kube
+
+- name: Create k8s directories
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - /etc/kubernetes
+
+- name: Write k8s master kubeconfig file
+  template:
+    dest: /etc/kubernetes/kubeconfig
+    src: kubeconfig.j2
+  register: kubeconfig_changed
+
+- name: Write k8s shared configuration file
+  template:
+    dest: /etc/kubernetes/config
+    src: config.j2
+  register: shared_changed
+
+- name: Set fact for restarting services if configuration changed
+  set_fact:
+    k8s_changed: "{{ kubeconfig_changed.changed or shared_changed.changed }}"

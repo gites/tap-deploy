@@ -1,0 +1,4 @@
+KUBELET_ADDRESS="--address=0.0.0.0"
+KUBELET_API_SERVER="--api-servers=https://{{ groups['k8s-master'][0] }}:{{ k8s_api_secure_port }}"
+KUBELET_ARGS="--kubeconfig=/etc/kubernetes/kubeconfig --pod-infra-container-image=localhost:5000/kubernetes/pause:latest --cluster-dns={{ kubedns_clusterip }} --cluster-domain={{ local_domain }}"
+KUBELET_TLS_ARGS="--tls-cert-file=/etc/kubernetes/ssl/{{ inventory_hostname }}.crt --tls-private-key-file=/etc/kubernetes/ssl/{{ inventory_hostname }}.key"

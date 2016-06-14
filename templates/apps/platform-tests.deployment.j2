@@ -1,0 +1,118 @@
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  name: "platform-tests"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      id: "platform-tests"
+  template:
+    metadata:
+      labels:
+        id: "platform-tests"
+    spec:
+      containers:
+        - name: "platform-tests"
+          image: "{{ repository_uri }}/platform-tests:{{ tap_version }}"
+          ports:
+            - containerPort: 80
+              protocol: "TCP"
+          resources:
+            limits:
+              memory: "{{ platform_tests_memory_limit }}"
+            requests:
+              memory: "{{ platform_tests_memory_limit }}"
+          env:
+            - name: "PT_TAP_DOMAIN"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform"
+                  key: "domain"
+            - name: "PORT"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform-tests"
+                  key: "port"
+            - name: "ACCESS_PROTOCOL"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform-tests"
+                  key: "protocol"
+            - name: "MONGODB_USERNAME"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform-tests"
+                  key: "mongodb-username"
+            - name: "MONGODB_PASSWORD"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform-tests"
+                  key: "mongodb-password"
+            - name: "MONGODB_DBNAME"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform-tests"
+                  key: "mongodb-dbname"
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: pt-ssl-crt-volume
+              mountPath: /opt/app/project/applications/platform-tests/ssl.crt
+              subPath: ssl.crt
+              readOnly: true
+        - name: mongodb30
+          image: "{{ repository_uri }}/frodenas/mongodb:3.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--smallfiles"
+          lifecycle:
+            preStop:
+              exec:
+                # gracefully terminate
+                command: ["mongod", "--dbpath", "/data", "--shutdown"]
+          ports:
+            - containerPort: 27017
+              protocol: TCP
+            - containerPort: 28017
+              protocol: TCP
+          resources:
+            limits:
+              memory: "{{ platform_tests_mongo_memory_limit }}"
+            requests:
+              memory: "{{ platform_tests_mongo_memory_limit }}"
+          env:
+            - name: "MONGODB_USERNAME"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform-tests"
+                  key: "mongodb-username"
+            - name: "MONGODB_PASSWORD"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform-tests"
+                  key: "mongodb-password"
+            - name: "MONGODB_DBNAME"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform-tests"
+                  key: "mongodb-dbname"
+          volumeMounts:
+            - mountPath: /data/
+              name: platform-tests-mongo
+              readOnly: false
+      restartPolicy: "Always"
+      dnsPolicy: "ClusterFirst"
+      volumes:
+        - name: pt-ssl-crt-volume
+          secret:
+            secretName: nginx-ingress-ssl
+        - name: platform-tests-mongo
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: platform-tests-mongo
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false

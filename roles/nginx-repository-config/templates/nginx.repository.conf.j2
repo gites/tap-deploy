@@ -1,0 +1,10 @@
+server {
+        listen       {{ repo_port }} default_server;
+        server_name  repository;
+
+	root /www/repository;
+
+	location / {
+		autoindex on;
+	}
+}

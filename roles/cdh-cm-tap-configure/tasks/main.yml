@@ -1,0 +1,48 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Reconfigure Cloudera Manager.
+#
+# Add CDH parcels specific to TAP platform.
+#
+###
+---
+
+- name: Copy csd files
+  copy: src="{{ item }}" dest=/opt/cloudera/csd
+  with_items:
+    - KAFKA-1.2.0.jar
+    - GEARPUMP-1.0.jar
+    - HADOOPGROUPSMAPPING-1.0.jar
+    - SQOOPMETASTORE-1.0.jar
+  register: cdh_csd_deploy
+
+- name: Restart cm after csd deployment
+  service: name=cloudera-scm-server state=restarted
+  when: cdh_csd_deploy.changed
+
+- name: Wait for cm port
+  wait_for: port=7180
+
+- name: restart cm service
+  cdh:
+    action: service
+    password: "{{ cdh_admin_password }}"
+    service: cm
+    state: restarted
+  when: cdh_csd_deploy.changed

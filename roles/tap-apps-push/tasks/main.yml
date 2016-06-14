@@ -1,0 +1,97 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Install python pip
+  yum:
+    name: python-pip
+    state: latest
+
+- name: Install pip dependency
+  pip:
+    name: "{{ repo_host }}/pip/{{ item }}"
+  with_items:
+    - six-1.10.0-py2.py3-none-any.whl
+    - requests-2.12.4-py2.py3-none-any.whl
+    - ipaddress-1.0.17-py2-none-any.whl
+    - backports.ssl_match_hostname-3.5.0.1.tar.gz
+    - websocket_client-0.40.0.tar.gz 
+    - docker_pycreds-0.2.1-py2.py3-none-any.whl
+    - docker_py-1.10.6-py2.py3-none-any.whl
+    - httplib2-0.9.2.zip
+
+- name: Create docker registry directory
+  file:
+    path: /var/lib/docker-registy/data-dir
+    state: directory
+    owner: "{{ ansible_ssh_user }}"
+    group: root
+    recurse: yes
+
+- name: Copy docker registry data
+  become: no
+  synchronize:
+    src: tap-images/
+    dest: /var/lib/docker-registy/data-dir/
+
+- name: Secure docker registry directory
+  file:
+    path: /var/lib/docker-registy/data-dir
+    state: directory
+    owner: root
+    group: root
+    recurse: yes
+
+# uri module does not support https requests
+- name: Wait for main docker registry port
+  shell: curl --key "/etc/kubernetes/ssl/{{ inventory_hostname }}.key" --cert "/etc/kubernetes/ssl/{{ inventory_hostname }}.crt" "https://{{ repository_uri }}/v2/" -f
+  register: registry_check
+  until: registry_check|success
+  retries: 10
+  delay: 15
+
+- name: Start local docker registry
+  docker:
+    name: local-docker-registry
+    image: localhost:5000/registry:2
+    state: started
+    ports:
+      - "{{ slave_registry_port }}:5000"
+    volumes:
+      - "/var/lib/docker-registy/data-dir:/var/lib/registry:ro"
+
+- name: Obtain images to push
+  docker_registry:
+    action: list
+    slave-docker-registry: "http://{{ registry.slave }}/"
+    master-docker-registry: "https://{{ registry.master }}/"
+    master-docker-registry-key: "/etc/kubernetes/ssl/{{ inventory_hostname }}.key"
+    master-docker-registry-cert: "/etc/kubernetes/ssl/{{ inventory_hostname }}.crt"
+    master-docker-registry-ca: "/etc/kubernetes/ssl/ca.crt"
+  register: update_list
+
+- include: pull_image.yml
+  with_items: "{{ update_list.data }}"
+
+- include: tag_image.yml
+  with_items: "{{ update_list.data }}"
+
+- include: push_image.yml
+  with_items: "{{ update_list.data }}"
+
+- include: remove_image.yml
+  with_items: "{{ update_list.data }}"

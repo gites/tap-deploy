@@ -1,0 +1,39 @@
+apiVersion: extensions/v1beta1
+kind: Job
+metadata:
+  name: "catalog-backup"
+spec:
+  template:
+    metadata:
+      name: catalog-backup
+      labels:
+        backup: catalog-backup
+    spec:
+      containers:
+        - name: etcdcatalog
+          image: "{{ repository_uri }}/coreos/etcd:v3.0.10"
+          command: ["uptime"]
+          env:
+            - name: ETCD_DEBUG
+              value: "true"
+          ports:
+            - containerPort: 2379
+              protocol: "TCP"
+            - containerPort: 4001
+              protocol: "TCP"
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - mountPath: /default.etcd
+              name: etcdcatalog-persistent-storage-backup
+      volumes:
+        - name: etcdcatalog-persistent-storage-backup
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: etcdcatalog-backup
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+      restartPolicy: "Never"

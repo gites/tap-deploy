@@ -1,0 +1,30 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+worker_size: "{{ groups['cdh-worker'] | length }}"
+master_size: "{{ groups['cdh-master'] | length }}"
+instance_cdh_devices: "{{ (instances[(groups['cdh-worker'][0] | split('.'))[0]].storage | default({})).devices | default([]) | map(attribute='device') | list }}"
+instance_cdh_volumes: []
+
+cdh_admin_password: super_secret_admin_pass
+
+cdh_users:
+  zabbix:
+    password: super_secret_zabbix_pass
+    roles:
+      - ROLE_USER

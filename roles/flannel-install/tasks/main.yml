@@ -1,0 +1,85 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Install flannel.
+#
+# This role installs flannel and configures it as a service.
+#
+###
+---
+
+- name: Download flanneld binaries
+  get_url:
+    url: "{{ repo_host }}/files/flanneld"
+    dest: /usr/local/bin/flanneld
+    mode: 0755
+
+- name: Make override docker systemd unit directory
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+
+- name: Override docker systemd unit
+  copy:
+    dest: /etc/systemd/system/docker.service.d/flannel.conf
+    src: flannel-docker.conf
+  notify:
+    - Reload systemd
+
+- name: Make flannel libexec directory
+  file:
+    path: /usr/local/libexec/flannel
+    state: directory
+
+- name: Write mk-docker-opts.sh script
+  copy:
+    dest: /usr/local/libexec/flannel/mk-docker-opts.sh
+    src: mk-docker-opts.sh
+    mode: 0755
+
+- name: Write flannel systemd-tmpfiles config file
+  copy:
+    dest: /etc/tmpfiles.d/flannel.conf
+    src: flannel-tmpfiles.conf
+
+- name: Make flannel tmp directory
+  file:
+    path: /run/flannel
+    state: directory
+
+- name: Write flanneld settings file
+  template:
+    backup: yes
+    dest: /etc/sysconfig/flanneld
+    src: flanneld.sysconfig.j2
+  notify:
+    - Restart flanneld
+
+- name: Write flanneld systemd startup script
+  template:
+    dest: /etc/systemd/system/flanneld.service
+    src: flanneld.service.j2
+  notify:
+    - Reload systemd
+    - Restart flanneld
+
+- name: Enable and start flanneld
+  service:
+    name: flanneld
+    enabled: yes
+    state: started

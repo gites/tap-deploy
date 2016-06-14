@@ -1,0 +1,26 @@
+# managed by ansible automation
+
+server {
+   listen       {{ zabbix_web.ListenPort }} default_server;
+   server_name  zabbix;
+   root         /usr/share/zabbix;
+   access_log   /var/log/nginx/zabbix_access.log main;
+   error_log    /var/log/nginx/zabbix_error.log error;
+   index        index.html index.php;
+
+   location ~ \.html$ {
+      if (!-f $request_filename) {
+         rewrite ^(.*)\.html$ $1.php permanent;
+      }
+   }
+
+   location ~ \.php {
+      include                   fastcgi_params;
+      try_files                 $uri =404;
+      fastcgi_split_path_info   ^(.+\.php)(/.+)$;
+      fastcgi_pass              127.0.0.1:9000;
+      fastcgi_index             index.php;
+      fastcgi_param             SCRIPT_FILENAME $document_root$fastcgi_script_name;
+      include                   fastcgi_params;
+   }
+}

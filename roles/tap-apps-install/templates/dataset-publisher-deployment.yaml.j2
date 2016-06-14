@@ -1,0 +1,126 @@
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    tap_app_type: CORE
+  name: dataset-publisher
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dataset-publisher
+    spec:
+      containers:
+      - name: dataset-publisher
+        image: '{{ repository_uri }}/dataset-publisher:{{ tap_version }}'
+        resources:
+          limits:
+            memory: "{{ dataset_publisher_memory_limit }}"
+          requests:
+            memory: "{{ dataset_publisher_memory_limit }}"
+        env:
+          - name: JAVA_OPTS
+            value: '-Xss228k -Xms512m -Xmx512m -XX:MetaspaceSize=128m'
+          - name: SERVER_PORT
+            value: '80'
+          - name: SPRING_PROFILES_ACTIVE
+            value: 'multitenant-hdfs,kubernetes'
+          - name: SSO_TOKENKEY
+            valueFrom:
+              configMapKeyRef:
+                name: sso
+                key: token-key
+          - name: SSO_APIENDPOINT
+            valueFrom:
+              configMapKeyRef:
+                name: sso
+                key: api-endpoint
+          - name: SSO_UAAURI
+            valueFrom:
+              configMapKeyRef:
+                name: sso
+                key: uaa-uri
+          - name: TOOLS_HUE_URI
+            valueFrom:
+              configMapKeyRef:
+                name: hue
+                key: uri
+          - name: TOOLS_HUE_AVAILABLE
+            valueFrom:
+              configMapKeyRef:
+                name: hue
+                key: available
+          - name: TOOLS_ARCADIA_URI
+            valueFrom:
+              configMapKeyRef:
+                name: arcadia
+                key: uri
+          - name: TOOLS_ARCADIA_AVAILABLE
+            valueFrom:
+              configMapKeyRef:
+                name: arcadia
+                key: available
+          - name: HIVE_URI
+            valueFrom:
+              configMapKeyRef:
+                name: cloudera-config
+                key: hive.jdbc
+          - name: KRB_KDC
+            valueFrom:
+              configMapKeyRef:
+                name: kerberos-config
+                key: krb.kdc
+          - name: KRB_REALM
+            valueFrom:
+              configMapKeyRef:
+                name: kerberos-config
+                key: krb.realm
+          - name: HADOOP_CONF_DIR
+            value: '/etc/hadoop'
+        volumeMounts:
+          - name: hadoop-conf
+            mountPath: /etc/hadoop
+            readOnly: true
+          - name: cacert-volume
+            mountPath: '{{ trusted_store_path }}'
+            readOnly: true
+          - mountPath: "/etc/krb5.conf"
+            name: kerberos-config-volume
+            subPath: krb5.conf
+            readOnly: true
+          - mountPath: "/etc/krb5.cacert.pem"
+            name: kerberos-cacert-volume
+            subPath: krb5.cacert.pem
+            readOnly: true
+      volumes:
+      - name: hadoop-conf
+        configMap:
+          name: hadoop-conf
+      - name: cacert-volume
+        secret:
+          secretName: cdh-ca
+          items:
+          - key: cacerts
+            path: '{{ trusted_store_file }}'
+      - name: kerberos-config-volume
+        configMap:
+          name: kerberos-config
+      - name: kerberos-cacert-volume
+        secret:
+          secretName: kerberos-cacert
+
+ 
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: dataset-publisher
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: dataset-publisher
+
+

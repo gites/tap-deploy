@@ -1,0 +1,53 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: request-store
+type: Opaque
+data:
+  cipher-key: "{{ hostvars[groups['k8s-master'][0]].passwords.das.cipher_key | b64encode }}"
+
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    tap_app_type: CORE
+  name: request-store
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: request-store
+    spec:
+      containers:
+        - name: request-store
+          image: '{{ repository_uri }}/redis:3.0'
+          args: ["--save", "30", "1"]
+          volumeMounts:
+            - mountPath: /data
+              name: request-store
+      volumes: 
+        - name: request-store 
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: request-store
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+ 
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: request-store
+spec:
+  ports:
+    - port: 6379
+  selector:
+    app: request-store
+

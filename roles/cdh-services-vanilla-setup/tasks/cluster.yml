@@ -1,0 +1,152 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Change admin password
+  cdh_api:
+    host: localhost
+    action: update_admin_password
+    password: "{{ cdh_admin_password }}"
+
+- name: Create all other users
+  cdh_api:
+    host: localhost
+    action: create_user
+    api_password: "{{ cdh_admin_password }}"
+    username: "{{ item.key }}"
+    password: "{{ item.value.password }}"
+    roles: "{{ item.value.roles }}"
+  with_dict: "{{ cdh_users }}"
+
+- name: create an empty cluster
+  cdh:
+    action: create_cluster
+    password: "{{ cdh_admin_password }}"
+    version: "{{ cdh_cluster_version }}"
+
+- name: add all hosts to the cluster
+  cdh:
+    action: add_host
+    password: "{{ cdh_admin_password }}"
+    host: "{{ item }}"
+  with_items: "{{groups['cdh-all']}}"
+
+- name: add a cloudera management service
+  cdh:
+    action: create_mgmt
+    password: "{{ cdh_admin_password }}"
+    host: "{{ groups['cdh-manager'][0] }}"
+
+- name: configure cloudera mgmt activity monitor
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: management
+    role: ACTIVITYMONITOR
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'firehose_database_host', value: "{{ database.host }}:{{ database.port }}" }
+    - { name: 'firehose_database_user', value: "{{ database.databases.activity_monitor.name }}" }
+    - { name: 'firehose_database_password', value: "{{ hostvars[groups['k8s-master'][0]].passwords.databases.activity_monitor }}" }
+    - { name: 'firehose_database_name', value: "{{ database.databases.activity_monitor.name }}" }
+    - { name: 'firehose_database_type', value: "mysql" }
+
+- name: configure cloudera mgmt reports manager
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: management
+    role: REPORTSMANAGER
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'headlamp_database_host', value: "{{ database.host }}:{{ database.port }}" }
+    - { name: 'headlamp_database_user', value: "{{ database.databases.reports_manager.name }}" }
+    - { name: 'headlamp_database_password', value: "{{ hostvars[groups['k8s-master'][0]].passwords.databases.reports_manager }}" }
+    - { name: 'headlamp_database_name', value: "{{ database.databases.reports_manager.name }}" }
+    - { name: 'headlamp_database_type', value: "mysql" }
+
+- name: set options for minimal deployment
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: management
+    role: "{{ item.role }}"
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { role: 'ACTIVITYMONITOR', name: 'firehose_heapsize', value: '268435456' }
+    - { role: 'REPORTSMANAGER', name: 'headlamp_heapsize',value: '268435456' }
+    - { role: 'HOSTMONITOR', name: 'firehose_non_java_memory_bytes', value: '805306368' }
+    - { role: 'HOSTMONITOR', name: 'firehose_heapsize', value: '268435456' }
+    - { role: 'ALERTPUBLISHER', name: 'alert_heapsize', value: '52428800' }
+    - { role: 'EVENTSERVER', name: 'event_server_heapsize', value: '52428800' }
+    - { role: 'SERVICEMONITOR', name: 'firehose_non_java_memory_bytes', value: '805306368' }
+    - { role: 'SERVICEMONITOR', name: 'firehose_heapsize', value: '268435456' }
+  when: deployment_type == 'minimal'
+
+- name: start mgmt service
+  cdh:
+    action: service
+    password: "{{ cdh_admin_password }}"
+    service: cm
+    state: started
+
+- name: set parcel mirrors
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: cm
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'REMOTE_PARCEL_REPO_URLS', value: '{{ cloudera_parcel_repo }}' }
+  register: parcels_deployed
+
+- name: wait for the parcels to refresh
+  pause:
+    seconds: 20
+  when: parcels_deployed.changed
+
+- name: deploy the CDH parcel to all hosts
+  cdh:
+    action: deploy_parcel
+    password: "{{ cdh_admin_password }}"
+    name: CDH
+    version: "{{ cloudera_cdh_parcel_version }}"
+
+- name: set parcel mirrors
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: cm
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'REMOTE_PARCEL_REPO_URLS', value: '{{ cloudera_parcel_repo }}' }
+  register: parcels_deployed
+
+- name: wait for the parcels to refresh
+  pause:
+    seconds: 20
+  when: parcels_deployed.changed

@@ -1,0 +1,54 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- set_fact:
+    jumpbox: "{{ created_instances[parsed_instances.jumpbox[0]] }}"
+
+- name: Wait for jumpbox to become accessible - simple waiting for port is not enought
+  shell: ssh -oBatchMode=yes -i "{{ aws_jumpbox_key_destination }}"
+    -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no
+    "{{ aws_ec2_user }}@{{ jumpbox.public_ip }}" exit 0
+  register: jumpbox_up
+  until: jumpbox_up|success
+  retries: 5
+  delay: 15
+  changed_when: false
+
+- name: Fill connect template script
+  template:
+    src: connect.j2
+    dest: ./connect
+    mode: 0755
+
+- name: Register jumpbox in local inventory
+  add_host:
+    groups: jumpbox
+    hostname: jumpbox
+    ansible_host: "{{ jumpbox.public_ip }}"
+    ansible_connection: ssh
+    ansible_user: "{{ aws_ec2_user }}"
+    ansible_ssh_private_key_file: "{{ aws_jumpbox_key_destination }}"
+  changed_when: false
+
+- name: Copy private key
+  copy:
+    src: "{{ aws_cluster_key_destination }}"
+    dest: ./.ssh/id_rsa
+    mode: 0600
+    owner: "{{ aws_ec2_user }}"
+  delegate_to: "{{ groups['jumpbox'][0] }}"

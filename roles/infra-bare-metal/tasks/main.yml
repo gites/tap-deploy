@@ -1,0 +1,110 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Check configuration
+  set_fact:
+    parsed_instances: "{{ instances | parse_instances }}"
+
+- name: Set bare-metal requirements
+  set_fact:
+    requirements:
+      ip:
+        required: true
+        ansible:
+          type: inventory
+          name: ansible_host
+
+- name: Validate configuration
+  set_fact:
+    validation: "{{ instances | check_instances(requirements) }}"
+
+- name: Register jumpbox in local inventory
+  add_host:
+    groups: jumpbox
+    hostname: jumpbox
+    ansible_host: "{{ instances[parsed_instances['jumpbox'][0]].ip }}"
+    ansible_connection: ssh
+    ansible_user: "{{ instances[parsed_instances['jumpbox'][0]].user }}"
+    ansible_ssh_private_key_file: "{{ ansible_ssh_private_key_file }}"
+  changed_when: false
+  when: instances[parsed_instances['jumpbox'][0]].ansible_ssh_private_key_file is defined
+
+- name: Register jumpbox in local inventory
+  add_host:
+    groups: jumpbox
+    hostname: jumpbox
+    ansible_host: "{{ instances[parsed_instances['jumpbox'][0]].ip }}"
+    ansible_connection: ssh
+    ansible_user: "{{ instances[parsed_instances['jumpbox'][0]].user }}"
+  changed_when: false
+  when: instances[parsed_instances['jumpbox'][0]].ansible_ssh_private_key_file is not defined
+
+- name: Create local tap-configuration dir
+  file:
+    path: "{{ lookup('env','HOME') }}/tap-configuration"
+    state: directory
+    mode: 0755
+
+- name: Wirte TAP external addresses to local tap.instance.out file 
+  lineinfile:
+    dest: "{{ lookup('env','HOME') }}/tap-configuration/tap.instance.out"
+    line: "tap-external-address-{{ item.0 }}: {{ item.1}}"
+    create: yes
+    state: present
+    regexp: "^tap-external-address-{{ item.0 }}: "
+  with_indexed_items: "{{ parsed_instances['compute-master']|map('extract', instances, 'ip')|list }}"
+
+- block:
+  - name: Create tap-configuration dir
+    file:
+      path: "./tap-configuration"
+      state: directory
+      mode: 0755
+      owner: "{{ instances[parsed_instances['jumpbox'][0]].user }}"
+
+  - name: Generate inventory from template
+    template:
+      src: inventory.j2
+      dest: "./tap-configuration/tap.inventory.out"
+      mode: 0644
+      owner: "{{ instances[parsed_instances['jumpbox'][0]].user }}"
+
+  - name: Copy tap.config
+    copy:
+      src: "{{ playbook_dir }}/tap.config"
+      dest: "./tap-configuration/tap.config"
+      mode: 0644
+      owner: "{{ instances[parsed_instances['jumpbox'][0]].user }}"
+
+  - name: Copy tap.config.secrets
+    copy:
+      src: "{{ playbook_dir }}/tap.config.secrets"
+      dest: "./tap-configuration/tap.config.secrets"
+      mode: 0644
+      owner: "{{ instances[parsed_instances['jumpbox'][0]].user }}"
+
+  - name: Wirte TAP external addresses to tap.instance.out file
+    lineinfile:
+      dest: "./tap-configuration/tap.instance.out"
+      line: "tap-external-address-{{ item.0 }}: {{ item.1}}"
+      create: yes
+      state: present
+      regexp: "^tap-external-address-{{ item.0 }}: "
+    with_indexed_items: "{{ parsed_instances['compute-master']|map('extract', instances, 'ip')|list }}"
+
+  delegate_to: "{{ groups['jumpbox'][0] }}"

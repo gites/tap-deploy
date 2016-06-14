@@ -1,0 +1,52 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Create lb for k8s
+  ec2_elb_lb:
+    state: present
+    name: "{{ env_name[0:24] }}-k8s-elb"
+    region: "{{ aws_region }}"
+    tags: "{{ aws_resource_tags }}"
+    secret_key: "{{ aws_secret_key }}"
+    access_key: "{{ aws_access_key }}"
+    listeners:
+      - protocol: tcp
+        proxy_protocol: False
+        load_balancer_port: 80
+        instance_port: 80
+      - protocol: tcp
+        proxy_protocol: False
+        load_balancer_port: 443
+        instance_port: 443
+    health_check:
+      ping_protocol: tcp
+      ping_port: 80
+      response_timeout: 5
+      interval: 30
+      unhealthy_threshold: 2
+      healthy_threshold: 4
+    instance_ids: "{{ parsed_instances['compute-master'] | map('extract', created_instances, ['id']) | list }}"
+    idle_timeout: 300
+    subnets: "{{ ec2_subnet_jump.subnet.id }}"
+    security_group_ids: "{{ ec2_sg_lb.group_id }}"
+    cross_az_load_balancing: yes
+    wait: yes
+  register: lb_k8s
+  until: lb_k8s|success
+  retries: 2
+  delay: 15

@@ -1,0 +1,110 @@
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    tap_app_type: CORE
+  name: uploader
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: uploader
+    spec:
+      containers:
+      - name: uploader
+        image: '{{ repository_uri }}/uploader:{{ tap_version }}'
+        resources:
+          limits:
+            memory: "{{ uploader_memory_limit }}"
+          requests:
+            memory: "{{ uploader_memory_limit }}"
+        env:
+        - name: JAVA_OPTS
+          value: '-Xss228k -Xms512m -Xmx512m -XX:MetaspaceSize=128m'
+        - name: SERVER_PORT
+          value: '80'
+        - name: SPRING_PROFILES_ACTIVE
+          value: 'multitenant-hdfs,kubernetes'
+        - name: SSO_TOKENKEY
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: token-key
+        - name: SSO_APIENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: api-endpoint
+        - name: SSO_UAAURI
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: uaa-uri
+        - name: DATA_ACQUISITION_URI
+          valueFrom:
+            configMapKeyRef:
+              name: das
+              key: host
+        - name: USER_MANAGEMENT_URI
+          valueFrom:
+            configMapKeyRef:
+              name: user-management
+              key: host
+        - name: HDFS_URI
+          valueFrom:
+            configMapKeyRef:
+              name: downloader-config
+              key: hdfs-uri
+        - name: DEFAULT_FS
+          valueFrom:
+            configMapKeyRef:
+              name: downloader-config
+              key: default-fs
+        - name: KERBEROS_KDC
+          valueFrom:
+            configMapKeyRef:
+              name: kerberos-config
+              key: krb.kdc
+        - name: KERBEROS_REALM
+          valueFrom:
+            configMapKeyRef:
+              name: kerberos-config
+              key: krb.realm
+        - name: HDFS_CONFIGDIR
+          value: /etc/hadoop
+        volumeMounts:
+        - mountPath: /etc/hadoop
+          name: hadoop-conf
+          readOnly: true
+        - mountPath: "/etc/krb5.conf"
+          name: kerberos-config-volume
+          subPath: krb5.conf
+          readOnly: true
+        - mountPath: "/etc/krb5.cacert.pem"
+          name: kerberos-cacert-volume
+          subPath: krb5.cacert.pem
+          readOnly: true
+      volumes:
+      - name: hadoop-conf
+        configMap:
+          name: hadoop-conf
+      - name: kerberos-config-volume
+        configMap:
+          name: kerberos-config
+      - name: kerberos-cacert-volume
+        secret:
+          secretName: kerberos-cacert
+
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: uploader
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: uploader

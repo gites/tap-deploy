@@ -1,0 +1,96 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: create directory for Hadoop configMaps
+  file:
+    path: '{{ configuration_path.hadoop }}'
+    state: 'directory'
+
+- name: get CDH client configurations
+  uri:
+    url: http://{{ groups["cdh-manager"][0] }}:7180/api/v11/clusters/CDH-cluster/services/{{ item.name }}/clientConfig
+    user: admin
+    password: "{{ cdh_admin_password }}"
+    force_basic_auth: yes
+    validate_certs: no
+    dest: '{{ configuration_path.hadoop }}/{{ item.value }}-clientconfig.zip'
+  with_items:
+    - { name: 'HDFS', value: 'hdfs'   }
+    - { name: 'HBASE', value: 'hbase' }
+    - { name: 'YARN', value: 'yarn'   }
+    - { name: 'HIVE', value: 'hive'   }
+
+- name: get base64 of archives
+  encoder:
+    action: 'directory'
+    dir: '{{ configuration_path.hadoop }}'
+  register: zip_configurations
+
+- name: set zip configuration facts
+  set_fact:
+    hadoop_config_archives: '{{ configuration_path.hadoop }}'
+    hdfs_zip_config:  '{{ zip_configurations.config["hdfs-clientconfig.zip"] }}'
+    hbase_zip_config: '{{ zip_configurations.config["hbase-clientconfig.zip"] }}'
+    hive_zip_config:  '{{ zip_configurations.config["hive-clientconfig.zip"] }}'
+    yarn_zip_config:  '{{ zip_configurations.config["yarn-clientconfig.zip"] }}'
+
+- name: get base64 for hadoop-conf directory
+  encoder:
+    action: 'archive'
+    dir: '{{ configuration_path.hadoop }}/hdfs-clientconfig.zip'
+  register: hadoop_conf
+
+- name: get base64 for hbase-conf directory
+  encoder:
+    action: 'archive'
+    dir: '{{ configuration_path.hadoop }}/hbase-clientconfig.zip'
+  register: hbase_conf
+
+- name: get base64 for hive-conf directory
+  encoder:
+    action: 'archive'
+    dir: '{{ configuration_path.hadoop }}/hive-clientconfig.zip'
+  register: hive_conf
+
+- name: get base64 for yarn-conf directory
+  encoder:
+    action: 'archive'
+    dir: '{{ configuration_path.hadoop }}/yarn-clientconfig.zip'
+  register: yarn_conf
+
+- name: get krb5 conf
+  encoder:
+    action: 'file'
+    dir: '/etc/krb5.conf'
+  register: krb5conf
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: get base64 of trustedstore
+  encoder:
+    action: 'file'
+    dir: '/opt/cloudera/security/jks/keystore.jks'
+  register: keystore_jks
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: set trustedstore default directory
+  set_fact:
+    trusted_store_path: "/etc/ssl/certs/java/"
+
+- name: set trustedstore default directory
+  set_fact:
+    trusted_store_file: "cacerts.jks"

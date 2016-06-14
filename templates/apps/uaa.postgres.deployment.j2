@@ -1,0 +1,57 @@
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  name: "uaa-postgres"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        id: "uaa-postgres"
+    spec:
+      containers:
+        - name: "postgres"
+          image: "{{ repository_uri }}/postgres:9.5.3"
+          ports:
+            - containerPort: 5432
+              protocol: "TCP"
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data/mnt
+              name: uaa-postgres
+          resources:
+            limits:
+              memory: "{{ uaa_postgres_memory_limit }}"
+            requests:
+              memory: "{{ uaa_postgres_memory_limit }}"
+          env:
+            - name: "POSTGRES_PASSWORD"
+              valueFrom:
+                configMapKeyRef:
+                  name: "uaa-postgres"
+                  key: "password"
+            - name: "POSTGRES_USER"
+              valueFrom:
+                configMapKeyRef:
+                  name: "uaa-postgres"
+                  key: "user"
+            - name: "POSTGRES_DB"
+              valueFrom:
+                configMapKeyRef:
+                  name: "uaa-postgres"
+                  key: "database"
+            - name: "PGDATA"
+              value: "/var/lib/postgresql/data/mnt/data"
+          imagePullPolicy: "Always"
+      restartPolicy: "Always"
+      dnsPolicy: "ClusterFirst"
+      volumes:
+        - name: uaa-postgres
+          rbd:
+            monitors: [{% for item in groups["mons"] %}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]
+            pool: rbd
+            image: uaa-postgres
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false

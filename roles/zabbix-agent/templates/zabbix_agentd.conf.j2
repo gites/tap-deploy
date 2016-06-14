@@ -1,0 +1,15 @@
+#{{ ansible_managed }}
+# This is a config file for the Zabbix agent daemon (Unix)
+# To get more information about Zabbix, visit http://www.zabbix.com
+{% for key,value in zabbix_agent.agent_conf.iteritems() %}
+{% if value is string or value is number %}
+{{ key }}={{ value }}
+{% else %}
+{% for item in value %}
+{{ key }}={{ item }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% for line in zabbix_agent.conf_include %}
+Include={{line}}
+{% endfor %}

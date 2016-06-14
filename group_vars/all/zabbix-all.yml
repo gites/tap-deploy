@@ -1,0 +1,105 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+zabbix_postgres_pass:
+
+zabbix_db:
+  os_packages:
+    - zabbix-server-pgsql-2.4.8
+    - postgresql-server
+    - python-psycopg2
+  host: "{{ hostvars[groups['zabbix-db'].0].ansible_hostname }}"
+  ipaddr: "{{ hostvars[groups['zabbix-db'].0].ansible_host }}"
+  database: zabbix
+  db_user: zabbix
+  db_pass: "{{ hostvars[groups['k8s-master'].0].passwords.zabbix.zabbix_postgres_pass }}"
+
+zabbix_server:
+  os_packages:
+    - zabbix-server-2.4.8
+    - python-psycopg2
+    - python-pip
+    - redis
+  python_packages:
+    - requests-2.11.1-py2.py3-none-any.whl
+    - redis-2.10.5-py2.py3-none-any.whl
+    - cm_api-13.0.0.tar.gz
+    - zabbix-api-0.4.tar.gz
+  host: "{{ hostvars[groups['zabbix-server'].0].ansible_hostname }}"
+  ipaddr: "{{ hostvars[groups['zabbix-server'].0].ansible_host }}"
+  api: "http://{{ hostvars[groups['zabbix-web'].0].ansible_host }}:{{ zabbix_web.ListenPort }}/api_jsonrpc.php"
+  user_name: Admin
+  user_pass: zabbix
+  name: zabbix
+  domain: zabbix.example.com
+  statuspage_token: zabbix_statuspage_apikey
+  server_conf:
+    ListenIP: 0.0.0.0
+    ListenPort: 10051
+    LogFile: /var/log/zabbix/zabbix_server.log
+    LogFileSize: 100
+    PidFile: /var/run/zabbix/zabbix_server.pid
+    DBHost: "{{ zabbix_db.ipaddr }}"
+    DBName: "{{ zabbix_db.database }}"
+    DBUser: "{{ zabbix_db.db_user }}"
+    DBPassword: "{{ zabbix_db.db_pass }}"
+    AlertScriptsPath: /usr/lib/zabbix/alertscripts
+    ExternalScripts: /usr/lib/zabbix/externalscripts
+    FpingLocation: /usr/sbin/fping
+    Fping6Location: /usr/sbin/fping6
+    Timeout: 15
+
+zabbix_web:
+  ListenPort: 10052
+  os_packages:
+    - zabbix-web-pgsql-2.4.8
+    - nginx
+    - php-fpm
+  php_ini:
+    - PHP:  [max_input_time, 300]
+    - PHP:  [upload_max_filesize, 2M]
+    - PHP:  [post_max_size, 16M]
+    - PHP:  [memory_limit, 128M]
+    - PHP:  [max_execution_time, 300]
+    - Date: [date__timezone, GMT]
+
+zabbix_agent:
+  os_packages:
+    - zabbix-agent-2.4.8
+  agent_conf:
+    AllowRoot: 1
+    ListenIP: "{{ ansible_host }}"
+    PidFile: /var/run/zabbix/zabbix_agentd.pid
+    LogFile: /var/log/zabbix/zabbix_agentd.log
+    LogFileSize: 100
+    DebugLevel: 3
+    EnableRemoteCommands: 0
+    LogRemoteCommands: 0
+    Server: "{{ hostvars[groups['zabbix-server'].0].ansible_host }}"
+    ServerActive: "{{ hostvars[groups['zabbix-server'].0].ansible_host }}"
+    ListenPort: 10050
+    StartAgents: 3
+    Hostname: "{{ inventory_hostname }}"
+    HostMetadata: "{{ group_names }}"
+  conf_include:
+    - /etc/zabbix/zabbix_agentd.d/
+  default_templates:
+    - Template OS Linux
+    - Template ICMP Ping
+  default_groups:
+    - TAP Servers

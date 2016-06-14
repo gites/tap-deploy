@@ -1,0 +1,322 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-small"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "5120",
+                  "volume_name": "mosquitto-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": [],
+                "containers": [
+                  {
+                    "name": "mosquitto",
+                    "image": "$repository_uri/trustedanalytics/mosquitto",
+                    "ports": [
+                      {
+                        "containerPort": 1883,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "MOSQUITTO_USER",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-mosquitto-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MOSQUITTO_PASS",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-mosquitto-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "volumeMounts": [
+                      {
+                        "name": "mosquitto-persistent-storage",
+                        "mountPath": "/mqtt"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "512M"
+                      },
+                      "limits": {
+                        "memory": "512M"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        },
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-medium"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "20480",
+                  "volume_name": "mosquitto-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": null,
+                "containers": [
+                  {
+                    "name": "mosquitto",
+                    "image": "$repository_uri/trustedanalytics/mosquitto",
+                    "ports": [
+                      {
+                        "containerPort": 1883,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "MOSQUITTO_USER",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-mosquitto-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MOSQUITTO_PASS",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-mosquitto-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "volumeMounts": [
+                      {
+                        "name": "mosquitto-persistent-storage",
+                        "mountPath": "/mqtt"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "4Gi"
+                      },
+                      "limits": {
+                        "memory": "4Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 1883
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-mosquitto-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "password": "$base64-$random1",
+            "username": "$base64-$random2"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "mosquitto-14",
+    "description": "Lightweight message broker implementing MQTT protocol.",
+    "metadata":[
+      {"key":"displayName","value": "mosquitto 1.4'"},
+      {"key":"imageUrl","value": "ata:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACkVBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3QCEH4oAAAA2nRSTlMAAAECAwQFBgcJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiQlJigpKissLS4vMDEyMzQ2Nzg5Ojs8PT9AQUJDREZHSUpLTE5PUFFSU1RVVlhZW1xdXl9jZGZnaGlqbG1ub3B0dXZ3eHl7fX5/gIKDhIWGh4iJi46QkZKTlJaXmJmanJ+goaKkpaanqKmqq6yvsLGys7S1t7i5uru8vb6/wMLDxMXGx8jJysvNzs/Q0dLT1NXW2Nna29ze3+Di4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/oOOhDMAAAOqSURBVHhe7dbdVxR1AIfxb7sLCBJCKSqYINibFEJapJpUWQZaGWVmgZWFUoaWoUW+hZGWWGZYGQJBZYZaqSC+ZyhUKrCCLbv7/DXlzM5hAKSFrjr5XM1cfGbO+f7mYnTdv+g/hK9hBdfYvVPUs+Bx8gnO3jREnNYC/Dh8SPi+VgA+dQ4Bz/NAxfQOKBo8fs4HZWF6DHhmsHg58K5TUiF4pg0KO9cCrxnA8TH8NmEQOGwb+J6VWcQBqB8RNI6sgM5sBYotBr50BYlH1UHrDFM6Zm7zAPifDA6Pb4Szdxr0hiWNADStTFBQeNIZOJ4kSRkfXAbwV2SFBLl2xnnYP0qKyjsIwLlVxoNcqbmljTP+Ac/ugMoopZdcAqDqiTApds6qajfA+wPjBV3wSczCfQD8viY55K68Lcexao/oDw97vrrZ52vZVwnUrm8FoCbv8dW1HZY7ufXF7yCnH+yooldtNV+cstylmqKs0ZJyoKIffCs9a/dY8Ojm3DRr6kg3vvi+eMSf9K2t8o3ZI2XvQ8jviaNm3R+jYnp1Zv1TaSmJRuOijSKkh6Dejl2FndC19zzBlm7Daxhkxd14vBez6szMBnr09dYdgapqzGp/+rvd3XihBZZIznLsfXWb+q0bL7bwq9JED2w6hhXeDaMGxrMsnC3thM1aAXDYi9GFF1wDYedhjI6H6UFoG6Mt4MW/zINZXeoAWO8BcDZFIQ3wsrQH3oZDczow87457Ko4sRNfdXlBjLQIjoRKzTRFnIJl0/8g0M+pV8NlsEFGS2GxFAl79DB0JN181NKepc5+cQa0BiZ9GgqkO+AjaTvs0o2VWFWM6Qc7foBXZPYArJUehW1SXBvMl2s1Vs2ZfXEOnAiT2SSDjb2MN8E4/nPR0ryLlvblO3rh8F9grgLFwjeSNsJGyVkHJZImfI/V9oieeDnUykpdNEpK8OKJl1K9MF9S6Fs+S+8fa8dxbvxp3fhX2iSpFN6R9Dq0T5Ske49Z+vQkGy6FUnVXB+GSbvHTOVpy7YaDV+4Vsc6P2YWpFla6H3ecDX8OSYGjL5IU2wSbZJRxCLP2mRauheWyVQL3SNJkcI+UNM0LC0wdusyNUWu6iefB6XA7XmlNXw6FkpQPl26XWVypH4CWcQY+Ajmylwu5Br4bLkZLcuyE+uEKNHkHAN86r+Dkz/Y6ZC8bVsiokgbjjTEn6bR9WlPLuoC55trXq0eJBYtSTTwlyxG4OJAie/Ev7Tr8yP/lf/sa/guNjfN4Hpo9YgAAAABJRU5ErkJggg=='"},
+      {"key":"longDescription","value": "Lightweight message broker implementing MQTT protocol."},
+      {"key":"providerDisplayName","value": ""},
+      {"key":"documentationUrl","value": "http://mosquitto.org/documentation/'"},
+      {"key":"supportUrl","value": "http://mosquitto.org/support/'"}
+    ],
+    "bindable": true,
+    "tags": [
+      "mosquitto",
+      "mqtt",
+      "streaming",
+      "iot"],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated Mosquitto 1.4 broker server. Resources used: 1 compute node, 512 MB RAM and 5 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      },
+      {
+        "name": "single-medium",
+        "description": "Create dedicated Masquitto 1.4 broker server. Resources used: 1 compute node, 4 GB RAM and 20 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

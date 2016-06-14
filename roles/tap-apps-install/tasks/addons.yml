@@ -1,0 +1,35 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+- name: create directory for k8s templates
+  file: group={{ ansible_user }} mode=0755 owner={{ ansible_user }} path=/home/{{ ansible_user }}/{{ item }} state=directory
+  with_items:
+    - tap_templates
+    - tap_templates/addons
+
+- name: KubeLogging Create a ConfigMap instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data: "{{ lookup('template', 'apps/td-agent.conf.j2') }}"
+    state: present
+
+- name: create addons
+  ignore_errors: yes
+  include: create-resource.yml dir=/home/{{ ansible_user }}/tap_templates name={{ item.name }} templ={{ item.templ }}
+  with_items:
+    - { name: 'KubeLogging', templ: 'addons/kube-logging-deployment.yml.j2' }

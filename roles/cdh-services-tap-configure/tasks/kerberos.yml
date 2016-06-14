@@ -1,0 +1,151 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Set KDC management options
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: cm
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'KDC_HOST', value: "{{ groups['cdh-manager'][0] }}" }
+    - { name: 'SECURITY_REALM', value: 'CLOUDERA' }
+    - { name: 'MAX_RENEW_LIFE', value: '5184000' }
+
+- name: Enable security on HDFS
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hdfs
+    name: '{{ item.name }}'
+    value: '{{ item.value }}'
+  with_items:
+    - { name: 'hadoop_security_authentication', value: 'kerberos' }
+    - { name: 'hadoop_security_authorization', value: 'true' }
+
+- name: Enable security on HBase
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hbase
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'hbase_security_authentication', value: 'kerberos' }
+
+- name: Enable security on Zookeeper
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: zookeeper
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'enableSecurity', value: 'true' }
+
+- name: Set hdfs role properties for security
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role 
+    service: hdfs
+    role: DATANODE
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'dfs_datanode_http_port', value: '1006' }
+    - { name: 'dfs_datanode_port', value: '1004' }
+    - { name: 'dfs_datanode_data_dir_perm', value: '700' }
+
+# This option will be enabled in 0.8.1, now our applications does not support kms with kerberos
+#- name: enable kerberos for kms
+#  cdh: action=set_config entity=service service=kms name={{ item.name }} value={{ item.value }}
+#  with_items:
+#    - { name: 'hadoop_kms_authentication_type', value: 'kerberos' }
+
+- name: Always sleep while importing credentials
+  lineinfile: 
+    dest: /usr/share/cmf/bin/import_credentials.sh
+    state: present
+    regexp: "^SLEEP=0"
+    line: "SLEEP=1"
+
+- name: Check to see if configuration imported
+  stat: 
+    path: /etc/krb_config_imported
+  register: krb_config
+
+- name: Import kerberos configuration
+  cdh: 
+    action: run_command
+    password: "{{ cdh_admin_password }}" 
+    service: cm
+    name: importAdminCredentials 
+    params: '{username: cloudera-scm/admin@CLOUDERA, password: {{ hostvars[groups["k8s-master"][0]].passwords.kerberos.cdh }} }'
+  register: krb_config_cmd
+  when: krb_config.stat.exists == false
+
+- name: Create a file after succesful import
+  file:
+    path: /etc/krb_config_imported
+    state: touch
+  when: krb_config_cmd|success and krb_config.stat.exists == false
+
+- name: Check to see if creds generated
+  stat:
+    path: /etc/krb_creds_generated
+  register: krb_creds
+
+- name: Generate kerberos credentials
+  cdh:
+    action: run_command
+    password: "{{ cdh_admin_password }}"
+    service: cm 
+    name: generateCredentials
+  register: krb_creds_cmd
+  when: krb_creds.stat.exists == false
+
+- name: Create a file after succesful generation
+  file:
+    path: /etc/krb_creds_generated
+    state: touch
+  when: krb_creds_cmd|success and krb_creds.stat.exists == false
+
+- name: Deploy hue kt master components
+  cdh:
+    action: deploy_base_roles
+    password: "{{ cdh_admin_password }}"
+    service: hue-kt
+    host: "{{ groups['cdh-manager'][0] }}"
+
+- name: Set hue role properties for security
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hue
+    role: KT_RENEWER
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'keytab_reinit_frequency', value: '604800' }

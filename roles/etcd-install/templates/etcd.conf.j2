@@ -1,0 +1,13 @@
+ETCD_ADVERTISE_CLIENT_URLS="http{% if item.value.enable_ssl %}s{% endif %}://{{ ansible_host }}:{{ item.value.client_port }}"
+ETCD_LISTEN_CLIENT_URLS="http{% if item.value.enable_ssl %}s{% endif %}://0.0.0.0:{{ item.value.client_port }}"
+ETCD_CLIENT_CERT_AUTH="{{ item.value.enable_ssl }}"
+ETCD_CERT_FILE="{{ item.value.cert_file|default() }}"
+ETCD_KEY_FILE="{{ item.value.key_file|default() }}"
+ETCD_TRUSTED_CA_FILE="{{ item.value.ca_file|default() }}"
+ETCD_DATA_DIR="/var/lib/etcd/{{ inventory_hostname }}.etcd.{{ item.key }}"
+ETCD_NAME="{{ inventory_hostname }}-{{ item.key }}"
+ETCD_INITIAL_CLUSTER_STATE="new"
+ETCD_INITIAL_CLUSTER_TOKEN="etcd-{{ item.key }}-cl"
+ETCD_LISTEN_PEER_URLS="http{% if item.value.enable_ssl %}s{% endif %}://{{ ansible_host }}:{{ item.value.peer_port }}"
+ETCD_INITIAL_ADVERTISE_PEER_URLS="http{% if item.value.enable_ssl %}s{% endif %}://{{ ansible_host }}:{{ item.value.peer_port }}"
+ETCD_INITIAL_CLUSTER={% for host in groups["k8s-etcd"]%}"{{ hostvars[host].inventory_hostname }}-{{ item.key }}=http{% if item.value.enable_ssl %}s{% endif %}://{{ hostvars[host].ansible_host }}:{{ item.value.peer_port }}"{% if not loop.last %},{% endif %}{% endfor %}

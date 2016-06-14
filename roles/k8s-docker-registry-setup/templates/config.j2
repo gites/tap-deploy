@@ -1,0 +1,16 @@
+version: 0.1
+log:
+  fields:
+    service: registry
+storage:
+  cache:
+    layerinfo: inmemory
+  filesystem:
+    rootdirectory: /var/lib/registry
+http:
+  addr: :5000
+  tls:
+    certificate: /cert/docker-registry.crt
+    key: /cert/docker-registry.key
+    clientcas:
+      - /cert/ca.crt

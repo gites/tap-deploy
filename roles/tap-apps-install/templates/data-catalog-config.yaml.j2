@@ -1,0 +1,76 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: data-catalog 
+data:
+  uri: "http://data-catalog:8080"
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: metadata-parser
+data:
+  uri: "http://metadata-parser"
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: downloader
+data:
+  uri: "http://downloader:8080"
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dataset-publisher
+data:
+  uri: "http://dataset-publisher"
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nats
+data:
+  uri: "nats://nats:4222"
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: hue
+data:
+  uri: "{{ external_protocol }}://hue.{{ tap_domain_name }}/metastore/table"
+  available: "true"
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: hue-file-browser
+data:
+  uri: "{{ external_protocol }}://hue.{{ tap_domain_name }}/filebrowser"
+  available: "true"
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: hue-oozie-editor
+data:
+  uri: "{{ external_protocol }}://hue.{{ tap_domain_name }}/oozie/editor/workflow/new/"
+  available: "true"
+
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: arcadia
+data:
+  uri: "{{ external_protocol }}://hue.{{ tap_domain_name }}/arc/apps/"
+  available: "false"

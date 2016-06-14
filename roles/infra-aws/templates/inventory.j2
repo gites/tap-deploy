@@ -1,0 +1,105 @@
+[jumpbox]
+{% for instance in parsed_instances['jumpbox'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[k8s-master]
+{% for instance in parsed_instances['compute-master'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[k8s-worker]
+{% for instance in parsed_instances['compute-worker'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[k8s-ca]
+{{ validation.inventory | generate_inventory_record(parsed_instances['compute-master'][0], local_domain) }} ansible_host="{{ created_instances[parsed_instances['compute-master'][0]].private_ip }}"
+
+[k8s-etcd]
+{% for instance in parsed_instances['compute-master'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[k8s-all:children]
+k8s-ca
+k8s-etcd
+k8s-master
+k8s-worker
+
+[k8s-node:children]
+k8s-master
+k8s-worker
+
+[cdh-manager]
+{% for instance in parsed_instances['hadoop-master-controller'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[cdh-master:children]
+cdh-master-primary
+cdh-master-secondary
+cdh-manager
+cdh-master-other
+
+[cdh-master-primary]
+{% for instance in parsed_instances['hadoop-master-primary'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[cdh-master-secondary]
+{% for instance in parsed_instances['hadoop-master-secondary'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[cdh-master-other]
+{% for instance in parsed_instances['hadoop-master'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[cdh-worker]
+{% for instance in parsed_instances['hadoop-worker'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[cdh-all:children]
+cdh-manager
+cdh-master
+cdh-worker
+
+[ca-client:children]
+cdh-all
+k8s-node
+k8s-etcd
+
+[mons]
+{% for instance in parsed_instances['storage-master'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[osds]
+{% for instance in parsed_instances['storage-master'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[rgws]
+
+[clients]
+{% for instance in parsed_instances['storage-client'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[zabbix-server]
+{% for instance in parsed_instances['zabbix-master'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[zabbix-db]
+{% for instance in parsed_instances['zabbix-master'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}
+
+[zabbix-web]
+{% for instance in parsed_instances['zabbix-master'] %}
+{{ validation.inventory | generate_inventory_record(instance, local_domain) }} ansible_host="{{ created_instances[instance].private_ip }}"
+{% endfor %}

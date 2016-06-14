@@ -1,0 +1,238 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Create security group for jumpbox instance
+  ec2_group:
+    access_key: "{{ aws_access_key }}"
+    description: "Security group for jumpbox instance"
+    name: "jump-sg"
+    purge_rules: no
+    purge_rules_egress: no
+    region: "{{ aws_region }}"
+    rules:
+      - proto: icmp
+        from_port: 8
+        to_port: -1
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 10050
+        to_port: 10050
+        cidr_ip: "{{ ec2_subnet_k8s_master.subnet.cidr_block }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_sg_jump
+  until: ec2_sg_jump|success
+  retries: 5
+  delay: 10
+
+- name: Create security group for load balancer
+  ec2_group:
+    access_key: "{{ aws_access_key }}"
+    description: "Security group for lb instance"
+    name: "lb-sg"
+    purge_rules: no
+    purge_rules_egress: no
+    region: "{{ aws_region }}"
+    rules:
+      - proto: tcp
+        from_port: 80
+        to_port: 80
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 443
+        to_port: 443
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 10050
+        to_port: 10050
+        cidr_ip: "{{ ec2_subnet_k8s_master.subnet.cidr_block }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_sg_lb
+  until: ec2_sg_lb|success
+  retries: 5
+  delay: 10
+
+- name: Create security group for k8s masters
+  ec2_group:
+    access_key: "{{ aws_access_key }}"
+    description: "Security group for k8s masters"
+    name: "k8s-master-sg"
+    purge_rules: no
+    purge_rules_egress: no
+    region: "{{ aws_region }}"
+    rules:
+      - proto: icmp
+        from_port: 8
+        to_port: -1
+        cidr_ip: 0.0.0.0/0
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_jump.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_master.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_worker.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_cdh.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_ceph.subnet.cidr_block }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_sg_k8s_master
+  until: ec2_sg_k8s_master|success
+  retries: 5
+  delay: 10
+
+- name: Create security group for k8s workers
+  ec2_group:
+    access_key: "{{ aws_access_key }}"
+    description: "Security group for k8s workers"
+    name: "k8s-worker-sg"
+    purge_rules: no
+    purge_rules_egress: no
+    region: "{{ aws_region }}"
+    rules:
+      - proto: icmp
+        from_port: 8
+        to_port: -1
+        cidr_ip: 0.0.0.0/0
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_jump.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_master.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_worker.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_cdh.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_ceph.subnet.cidr_block }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_sg_k8s_worker
+  until: ec2_sg_k8s_worker|success
+  retries: 5
+  delay: 10
+
+- name: Create security group for nat instance
+  ec2_group:
+    access_key: "{{ aws_access_key }}"
+    description: "Security group for nat instance"
+    name: "nat-sg"
+    purge_rules: no
+    purge_rules_egress: no
+    region: "{{ aws_region }}"
+    rules:
+      - proto: icmp
+        from_port: 8
+        to_port: -1
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_jump.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_master.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_worker.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_cdh.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_ceph.subnet.cidr_block }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_sg_nat
+  until: ec2_sg_nat|success
+  retries: 5
+  delay: 10
+
+- name: Create security group for cdh instance
+  ec2_group:
+    access_key: "{{ aws_access_key }}"
+    description: "Security group for cdh instances"
+    name: "cdh-sg"
+    purge_rules: no
+    purge_rules_egress: no
+    region: "{{ aws_region }}"
+    rules:
+      - proto: icmp
+        from_port: 8
+        to_port: -1
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_cdh.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_jump.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_master.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_worker.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_ceph.subnet.cidr_block }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_sg_cdh
+  until: ec2_sg_cdh|success
+  retries: 5
+  delay: 10
+
+- name: Create security group for ceph instance
+  ec2_group:
+    access_key: "{{ aws_access_key }}"
+    description: "Security group for ceph instnaces"
+    name: "ceph-sg"
+    purge_rules: no
+    purge_rules_egress: no
+    region: "{{ aws_region }}"
+    rules:
+      - proto: icmp
+        from_port: 8
+        to_port: -1
+        cidr_ip: 0.0.0.0/0
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_jump.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_master.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_k8s_worker.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_cdh.subnet.cidr_block }}"
+      - proto: all
+        cidr_ip: "{{ ec2_subnet_ceph.subnet.cidr_block }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_sg_ceph
+  until: ec2_sg_ceph|success
+  retries: 5
+  delay: 10

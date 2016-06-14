@@ -1,0 +1,82 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Kubernetes worker initialization.
+#
+# It installs and configures kubelet service.
+#
+###
+---
+
+- name: Create k8s directories
+  file:
+    mode: 0750
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - /var/lib/kubelet
+
+- name: Download kubernetes kubelet binary
+  get_url:
+    url: "{{ repo_host }}/files/kubelet"
+    dest: /usr/local/bin/kubelet
+    mode: 0755
+
+- name: Write kubelet systemd unit
+  copy:
+    dest: /etc/systemd/system/kubelet.service
+    src: kubelet.service
+  notify:
+    - Reload systemd
+
+- name: Ensure custom systemd system.conf directory exists
+  file:
+    path: /etc/systemd/system.conf.d
+    state: directory
+
+- name: Set kubernetes accounting settings
+  copy:
+    dest: /etc/systemd/system.conf.d/kubernetes-accounting.conf
+    src: kubernetes-accounting.conf
+  notify:
+    - Load kubernetes accounting settings
+
+- meta: flush_handlers
+
+- name: Write k8s worker kubelet configuration file
+  template:
+    dest: /etc/kubernetes/kubelet
+    src: kubelet.j2
+  notify:
+    - Restart kubelet
+
+- name: Enable and start k8s worker services
+  service:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  with_items:
+    - kubelet
+
+- name: Restart k8s worker services
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - kubelet
+  when: k8s_changed

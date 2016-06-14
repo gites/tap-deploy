@@ -1,0 +1,37 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- wait_for: host={{ groups['cdh-manager'][0] }} port=10000
+
+- set_fact:
+    sentry_cs: "jdbc:hive2://{{ groups['cdh-manager'][0] }}:10000/default;principal=hive/{{ groups['cdh-manager'][0] }}@CLOUDERA;auth=kerberos;"
+
+- name: init kerberos for sentry
+  kinit: usr='{{ item.usr }}' pass='{{ item.pass }}'
+  with_items:
+    - { usr: 'hive/cloudera', pass: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.cdh }}' }
+  when: kerberos.enabled
+
+- name: execute sentry database commands
+  shell: sudo -u hive beeline -u "{{ sentry_cs }}" -e "{{ item.command }}" && touch /etc/sentry_{{ item.file }} creates=/etc/sentry_{{ item.file }}
+  with_items:
+    - { command: 'CREATE ROLE admin;', file: 'create_role' }
+    - { command: 'GRANT ALL ON SERVER server1 TO ROLE admin;', file: 'grant_role' }
+    - { command: 'GRANT ROLE admin TO GROUP hive;', file: 'grant_hive' }
+    - { command: 'GRANT ROLE admin TO GROUP hue;', file: 'grant_hue' }
+  when: kerberos.enabled

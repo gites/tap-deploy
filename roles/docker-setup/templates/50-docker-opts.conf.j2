@@ -1,0 +1,10 @@
+[Service]
+EnvironmentFile=-/etc/sysconfig/docker
+EnvironmentFile=-/run/flannel/docker
+
+ExecStart=
+ExecStart=/usr/bin/dockerd \
+          $INSECURE_REGISTRY \
+          $DOCKER_OPTS \
+          $DOCKER_NETWORK_OPTIONS -s overlay
+

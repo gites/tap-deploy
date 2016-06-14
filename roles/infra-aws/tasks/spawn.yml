@@ -1,0 +1,74 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Set instance parameters
+  set_fact:
+    name: "{{ item.key }}"
+    roles: "{{ item.value.roles }}"
+    type: "{{ item.value.type }}"
+    storage: "{{ item.value.storage | default({}) }}"
+
+- name: Map instance config
+  set_fact:
+    group: "{{ mapping[ roles | get_instance_group] }}"
+    tags:
+      Name: "{{ name }}"
+    storage_size: "{{ storage.size | default(default_system_partition_size) | int }}"
+    public_ip: "{{ 'jumpbox' in roles }}"
+    instance_type: "{{ type if type not in instance_types else instance_types[type] }}"
+    key_name: "{{ aws_jumpbox_key_name if 'jumpbox' in roles else aws_cluster_key_name }}"
+
+- name: Check {{ name }} instance disk
+  fail: 
+    msg: "Root storage disk is too small"
+  when: storage_size < (default_system_partition_size)
+
+- name: Validate disks size for {{ name }} instance
+  fail:
+    msg: "Device {{ disk.device }} size is invalid ({{ disk.size }})"
+  loop_control:
+    loop_var: disk
+  with_items:  "{{ storage.devices | default([]) }}"
+  when: (disk.size | default(200)) < 1 or (disk.size | default(200)) > 2000
+
+- name: Create {{ name }} ec2 instance
+  ec2:
+    assign_public_ip: "{{ 'yes' if public_ip else 'no' }}"
+    access_key: "{{ aws_access_key }}"
+    count_tag: "{{ aws_resource_tags | combine(tags) }}"
+    exact_count: 1
+    group_id: "{{ group.security_group.group_id }}"
+    image: "{{ aws_jumpbox_image[aws_region] }}"
+    instance_tags: "{{ aws_resource_tags | combine(tags) }}"
+    instance_type: "{{ instance_type }}"
+    key_name: "{{ key_name }}"
+    region: "{{ aws_region }}"
+    secret_key: "{{ aws_secret_key }}"
+    source_dest_check: yes
+    volumes: '{{ lookup("template", "disks.j2") | from_yaml }}'
+    vpc_subnet_id: "{{ group.subnet.id }}"
+    wait: yes
+    zone: "{{ aws_availability_zone }}"
+  register: tagged_instance
+
+- name: Get created instance information
+  set_fact:
+    instance: "{{ tagged_instance.tagged_instances[0] }}"
+
+- set_fact:
+    created_instances: "{{ created_instances | default({}) | combine({ name: instance }) }}"

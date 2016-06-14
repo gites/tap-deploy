@@ -1,0 +1,43 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+aws_access_key:
+aws_secret_key:
+
+aws_region:
+aws_availability_zone:
+
+aws_jumpbox_key_name: "{{ env_name }}-jumpbox-key"
+aws_jumpbox_key_destination: "{{ lookup('env','HOME') }}/.ssh/{{ aws_jumpbox_key_name }}.pem"
+
+aws_cluster_key_name: "{{ env_name }}-cluster-key"
+aws_cluster_key_destination: "{{ lookup('env','HOME') }}/.ssh/{{ aws_cluster_key_name }}.pem"
+
+# Example:
+# { "Environment": "Dev",  "Owner": "john doe", "Project": "tap test installation"}
+# NOTE: ansible cloud modules use tags to verify if various infrastructure parts are in a proper state,
+#   for every environment set of tags should be UNIQUE
+aws_base_resource_tags:
+
+# possible values: centos
+aws_ec2_user: centos
+
+aws_cdh_manager_volume_type: "gp2"
+aws_cdh_master_volume_type: "gp2"
+aws_cdh_worker_volume_type: "gp2"
+aws_ceph_volume_type: "gp2"

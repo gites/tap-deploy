@@ -1,0 +1,54 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Create directories structure for SSL encryption
+  file: group=root mode=0755 owner=root path={{ item }} state=directory
+  with_items:
+    - /opt/cloudera/security/
+    - /opt/cloudera/security/x509/
+    - /opt/cloudera/security/jks/
+    - /opt/cloudera/security/CAcerts/
+  register: security_path
+
+- name: Get CA certificate from CA API
+  uri:
+    url: http://{{ ca_service_clusterip }}/api/v1/ca
+    user: "{{ ca_service.user }}"
+    password: "{{ hostvars[groups['k8s-master'][0]].passwords.ca_service.pass }}"
+  register: ca
+  when: security_path.changed
+
+- name: Save CA to file
+  copy: content="{{ ca.json.ca_cert }}" dest=/opt/cloudera/security/CAcerts/RootCA.pem
+  when: security_path.changed
+
+- name: Generate certificates and keys for CDH nodes from CA API
+  uri:
+    url: http://{{ ca_service_clusterip }}/api/v1/certkey/{{ inventory_hostname }}
+    user: "{{ ca_service.user }}"
+    password: "{{ hostvars[groups['k8s-master'][0]].passwords.ca_service.pass }}"
+  register: certkey
+  when: security_path.changed
+
+- name: Save certificate to file
+  copy: content="{{ certkey.json.cert }}" dest=/opt/cloudera/security/x509/{{ inventory_hostname }}.pem
+  when: security_path.changed
+
+- name: Save key to file
+  copy: content="{{ certkey.json.key }}" dest=/opt/cloudera/security/x509/{{ inventory_hostname }}.key
+  when: security_path.changed

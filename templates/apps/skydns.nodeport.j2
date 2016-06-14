@@ -1,0 +1,13 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: kube-dns-client
+  namespace: kube-system
+spec:
+  type: NodePort
+  ports:
+  - port: 53
+    nodePort: 30053
+    protocol: UDP
+  selector:
+    app: kube-dns

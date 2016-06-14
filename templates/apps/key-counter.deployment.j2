@@ -1,0 +1,71 @@
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  name: "key-counter"
+  labels:
+    tap_app_type: CORE
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: key-counter
+    spec:
+      containers:
+        - name: "key-counter"
+          image: "{{ repository_uri }}/key-counter:{{ tap_version }}"
+          ports:
+            - containerPort: "80"
+              protocol: "TCP"
+          resources:
+            limits:
+              memory: "{{ key_counter_memory_limit }}"
+            requests:
+              memory: "{{ key_counter_memory_limit }}"
+          env:
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: "key-counter"
+                  key: "port"
+            - name: KEY_COUNTER_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: "key-counter"
+                  key: "key-counter-user"
+            - name: KEY_COUNTER_PASS
+              valueFrom:
+                configMapKeyRef:
+                  name: "key-counter"
+                  key: "key-counter-pass"
+            - name: REDIS_HOST
+              value: localhost
+            - name: REDIS_PORT
+              value: "6379"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+          imagePullPolicy: "Always"
+        - name: "redis"
+          image: "{{ repository_uri }}/redis:3.0"
+          command: ["redis-server", "--appendonly","yes"]
+          volumeMounts:
+          - mountPath: /data
+            name: key-counter-redis
+          imagePullPolicy: "IfNotPresent"
+      volumes:
+      - name: key-counter-redis
+        rbd:
+          monitors: [{% for item in groups["mons"]%}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]
+          pool: rbd
+          image: key-counter-redis
+          user: admin
+          secretRef:
+            name: ceph-secret
+          fsType: ext4
+          readOnly: false

@@ -1,0 +1,2 @@
+kubernetes/pause tapimages:8080
+registry:2 dockerhub

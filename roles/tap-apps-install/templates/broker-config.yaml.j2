@@ -1,0 +1,36 @@
+# ConfigMap with specific properties for each broker.
+# Types of properties:
+# - tags
+# - images
+# - users and passwords (to interaction beetwen platform and broker),
+# - specific, like broker.zookeeper.root
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: broker-config
+  labels:
+    id: broker-config
+    managed_by: "TAP"
+data:
+  broker.system.user: "{{ broker_principal }}"
+  broker.zookeeper.root: /org
+  broker.zookeeper.tags: zookeeper
+  broker.hive.tags: hive
+  broker.hdfs.tags: hdfs
+  broker.profiles: "{{ broker_profiles }}"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: broker-passwords
+  labels:
+      managed_by: "TAP"
+type: Opaque
+data:
+  broker.system.user.password: "{{ '' | rand_password() | b64encode }}"
+  broker.zookeeper.password: "{{ '' | rand_password() | b64encode }}"
+  broker.hive.password:  "{{ '' | rand_password() | b64encode }}"
+  broker.hdfs.password:  "{{ '' | rand_password() | b64encode }}"
+  broker.kerberos.user.password: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.broker | b64encode }}'

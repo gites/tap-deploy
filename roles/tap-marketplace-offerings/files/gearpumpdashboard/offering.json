@@ -1,0 +1,226 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions\/v1beta1",
+          "metadata": {
+            "name": "gp-ui-$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "spec": {
+                "volumes": null,
+                "containers": [
+                  {
+                    "name": "gearpump-dashboard",
+                    "image": "$repository_uri/gearpump-dashboard:$tap_version",
+                    "ports": [
+                      {
+                        "containerPort": 80,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      },
+                      {
+                        "name": "UAA_API_ENDPOINT",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "sso", "key": "api-endpoint" }
+                        }
+                      },
+                      {
+                        "name": "UAA_HOST",
+                        "value": "$tap_protocol://uaa.$domain_name"
+                      },
+                      {
+                        "name": "CALLBACK",
+                        "value": "$hostname.$domain_name"
+                      },
+                      {
+                        "name": "UAA_SCOPE",
+                        "value": "openid,tap.user"
+                      },
+                      {
+                        "name": "TAP_PROTOCOL",
+                        "value": "$tap_protocol"
+                      }
+                    ],
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {
+            }
+          },
+          "status": {
+          }
+        }
+      ],
+      "ingresses": [
+        {
+          "kind": "Ingress",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "annotations" : {
+              "useExternalSsl": "$use_external_ssl"
+            },
+            "name": "gp-ui-$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "rules": [
+              {
+                "host": "$hostname.$domain_name",
+                "http": {
+                  "paths": [
+                    {
+                      "path": "/",
+                      "backend": {
+                        "serviceName": "gp-ui-$idx_and_short_instance_id",
+                        "servicePort": 80
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "gp-ui-$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "ClusterIP",
+            "ports": [
+              {
+                "name": "rest",
+                "protocol": "TCP",
+                "port": 80
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {
+            }
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "gp-ui-$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": null
+      }
+    ],
+    "hooks": null
+  },
+  "services": [{
+    "name": "gearpumpdashboard",
+    "description": "The GearPump dashboard service instantiated by the GearPump broker.",
+    "metadata": [
+      {
+        "key": "source_offering_id",
+        "value": "gearpump-dashboard-id"
+      },
+      {
+        "key": "source_plan_id-free",
+        "value": "gearpump-dashboard-plan-id"
+      }
+    ],
+    "bindable": false,
+    "tags": [
+      "gearpump",
+      "gearpump-dashboard"
+    ],
+    "plans": [
+      {
+        "name": "free",
+        "description": "free",
+        "cost": "free"
+      }
+    ]
+  }]
+}

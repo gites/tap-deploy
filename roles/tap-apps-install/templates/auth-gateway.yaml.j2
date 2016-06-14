@@ -1,0 +1,270 @@
+---
+kind: "Service"
+apiVersion: "v1"
+metadata:
+  name: "auth-gateway"
+  labels:
+    id: "auth-gateway"
+spec:
+  type: "ClusterIP"
+  selector:
+    app: "auth-gateway"
+  ports:
+    - port: 80
+      protocol: "TCP"
+      targetPort: 8080
+register: auth_gateway_service_details
+---
+kind: "ConfigMap"
+apiVersion: "v1"
+metadata:
+  name: "auth-gateway"
+data:
+  host: "http://auth-gateway"
+
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: auth-gateway
+  labels:
+    tap_app_type: CORE
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: auth-gateway
+    spec:
+      volumes:
+      - name: hdfs-config-volume
+        configMap:
+          name: hadoop-conf
+      - name: hbase-config-volume
+        configMap:
+          name: hbase-conf
+      - name: hive-config-volume
+        configMap:
+          name: hive-conf
+      - name: hadoop-krb-volume
+        secret:
+          secretName: hadoop-keytabs
+          items:
+          - key: authgateway
+            path: "authgateway.keytab"
+          - key: hgm
+            path: "hgm.keytab"
+          - key: hive
+            path: "hive.keytab"
+      - name: cacert-volume
+        secret:
+          secretName: cdh-ca
+          items:
+          - key: cacerts
+            path: "{{ trusted_store_file }}"
+      containers:
+      - name: auth-gateway
+        image: "{{ repository_uri }}/auth-gateway:{{ tap_version }}"
+        resources:
+          limits:
+            memory: "{{ auth_gateway_memory_limit }}"
+          requests:
+            memory: "{{ auth_gateway_memory_limit }}"
+        volumeMounts:
+        - mountPath: "{{ trusted_store_path }}"
+          name: cacert-volume
+        - mountPath: "/etc/hadoop"
+          name: hdfs-config-volume
+          readOnly: true
+        - mountPath: "/etc/hbase"
+          name: hbase-config-volume
+          readOnly: true
+        - mountPath: "/etc/hive"
+          name: hive-config-volume
+          readOnly: true
+        - mountPath: "/etc/keytabs"
+          name: hadoop-krb-volume
+          readOnly: true
+        ports:
+        - containerPort: 80
+        env:
+        # Truststore configuration
+        - name: CLOUDERA_TRUSTSTORE
+          value: "{{ trusted_store_path }}{{ trusted_store_file }}"
+        - name: CLOUDERA_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cdh-ca
+              key: password
+        # HBASE module configuration
+        - name: HBASE_CONFIG_PATH
+          value: "/etc/hbase/"
+        # HDFS module configuration
+        - name: HDFS_CONFIG_PATH
+          value: "/etc/hadoop/"
+        - name: HDFS_CFUSER
+          valueFrom:
+            secretKeyRef:
+              name: authgateway-secret
+              key: tap.user
+        - name: HDFS_HIVEUSER
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: hdfs.hiveuser
+        # YARN module configuration
+        - name: CLOUDERA_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.password
+        - name: CLOUDERA_USER
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.user
+        - name: CLOUDERA_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.manager.url
+        # HGM module configuration
+        - name: HGM_PRINCIPAL_KEYTAB_PATH
+          value: "/etc/keytabs/hgm.keytab"
+        - name: HGM_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: hgm.password
+        - name: HGM_PRINCIPAL
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: hgm.principal
+        - name: HGM_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: hgm.host
+        - name: HGM_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: hgm.user
+        # Warehouse module configuration
+        - name: HIVE_CONFIG_PATH
+          value: "/etc/hive/"
+        - name: WAREHOUSE_KEYTAB_PATH
+          value: "/etc/keytabs/hive.keytab"
+        - name: HIVE_CONNECTIONURL
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: hive.jdbc
+        - name: IMPALA_CONNECTIONURL
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: impala.jdbc
+        - name: IMPALA_AVAILABLE
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: impala.availability
+        - name: SENTRY_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: sentry.host
+        - name: SENTRY_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: sentry.port
+        - name: SENTRY_PRINCIPAL
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: sentry.principal
+        - name: WAREHOUSE_SUPERUSER
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: warehouse.principal
+        # Kerberos Configuration
+        - name: KRB_KEYTAB
+          value: "/etc/keytabs/authgateway.keytab"
+        - name: KRB_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: kerberos-config
+              key: krb.enabled
+        - name: KRB_KDC
+          valueFrom:
+            configMapKeyRef:
+              name: kerberos-config
+              key: krb.kdc
+        - name: KRB_REALM
+          valueFrom:
+            configMapKeyRef:
+              name: kerberos-config
+              key: krb.realm
+        - name: KRB_USER
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: hdfs.principal
+        # SSO Configuration
+        - name: SSO_TOKENKEY
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: token-key
+        - name: SSO_UAAURI
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: uaa-uri
+        - name: SSO_CLIENTID
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: client-id
+        - name: SSO_CLIENTSECRET
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: client-secret
+        - name: SSO_APIENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: user-management
+              key: host
+        # Synchronization endpoint store configuration
+        - name: ZK_USER
+          valueFrom:
+            secretKeyRef:
+              name: authgateway-secret
+              key: zk.user
+        - name: ZK_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: authgateway-secret
+              key: zk.password
+        - name: ZK_CLUSTER_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: zookeeper.cluster.host
+        # Active modules profiles
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            secretKeyRef:
+              name: authgateway-secret
+              key: profiles
+        - name: JAVA_OPTS
+          value: "-Xss228k -Xms1024m -Xmx1024m -XX:MetaspaceSize=128m"
+        - name: RESOURCE_ID
+          value: "tap"
+        - name: VERSION
+          value: "0.8.1"

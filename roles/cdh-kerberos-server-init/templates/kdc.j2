@@ -1,0 +1,34 @@
+[logging]
+default = FILE:/var/log/krb5libs.log
+kdc = FILE:/var/log/krb5kdc.log
+admin_server = FILE:/var/log/kadmind.log
+
+[libdefaults]
+default_realm = CLOUDERA
+dns_lookup_realm = false
+dns_lookup_kdc = false
+forwardable = true
+jwt_public_key = /var/kerberos/krb5kdc/cf_key.pub
+jwt_ignore_cert_missing = true
+jwt_expiration_time_sync = true
+
+[realms]
+CLOUDERA = {
+  kdc = {{ kerberos.server }}
+  admin_server = {{ kerberos.server }}
+  max_life = {{ kerberos.ticket.lifetime }}
+  max_renewable_life = {{ kerberos.ticket.renewtime }}
+  master_key_type = des3-hmac-sha1
+  supported_enctypes = aes256-cts:normal arcfour-hmac:normal aes128-cts:normal des3-hmac-sha1:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
+  default_principal_flags = +renewable, +forwardable
+  pkinit_identity = FILE:/var/kerberos/krb5kdc/kdc.pem,/var/kerberos/krb5kdc/kdckey.pem
+  pkinit_anchors = FILE:/var/kerberos/krb5kdc/cacert.pem
+}
+
+[domain_realm]
+.cloudera = CLOUDERA
+cloudera = CLOUDERA
+.internal = CLOUDERA
+internal = CLOUDERA
+.local = CLOUDERA
+local = CLOUDERA

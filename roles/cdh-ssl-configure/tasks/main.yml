@@ -1,0 +1,337 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+### Creating Java keystore and trustore for CDH nodes
+- name: Convert the openssl private key and certificate files into a PKCS12 file
+  command: openssl pkcs12 -export -in /opt/cloudera/security/x509/{{ inventory_hostname }}.pem -inkey /opt/cloudera/security/x509/{{ inventory_hostname }}.key -out /opt/cloudera/security/x509/{{ inventory_hostname }}.p12 -name {{ inventory_hostname }} -passin pass:{{ store_pass }} -passout pass:{{ store_pass }}
+  args:
+    creates: /opt/cloudera/security/x509/{{ inventory_hostname }}.p12
+
+- name: The PKCS12 file import into a created CDH Java keystore file
+  command: keytool -importkeystore -noprompt -srckeystore /opt/cloudera/security/x509/{{ inventory_hostname }}.p12 -srcstoretype PKCS12 -srcstorepass {{ store_pass }} -alias {{ inventory_hostname }} -deststorepass {{ store_pass }} -destkeypass {{ store_pass }} -destkeystore /opt/cloudera/security/jks/keystore.jks
+  args:
+    creates: /opt/cloudera/security/jks/keystore.jks
+  register: keystore_created
+
+- name: Add CA certificate CDH to keystore
+  command: keytool -importcert -noprompt -trustcacerts -alias RootCA -keystore /opt/cloudera/security/jks/keystore.jks -file /opt/cloudera/security/CAcerts/RootCA.pem -storepass {{ store_pass }}
+  when: keystore_created.changed
+
+- name: Fetching all CDH nodes certificates to Ansible machine
+  fetch: dest={{ lookup('env','HOME') }}/tmp/{{ inventory_hostname }}.pem flat=yes src=/opt/cloudera/security/x509/{{ inventory_hostname }}.pem validate_checksum=yes
+
+- name: Copy all CDH nodes certificates to cdh-manager from Ansible machine
+  copy: backup=yes dest=/opt/cloudera/security/x509/{{ item }}.pem group=root mode=0644 owner=root src={{ lookup('env','HOME') }}/tmp/{{ item }}.pem
+  with_items: "{{ groups['cdh-all'] }}"
+  when: "'cdh-manager' in group_names"
+
+- name: Create trustore with CA certificate on cdh-manager
+  command: keytool -importcert -noprompt -keystore /opt/cloudera/security/jks/truststore.jks -alias RootCA -file /opt/cloudera/security/CAcerts/RootCA.pem -storepass {{ store_pass }}
+  args:
+    creates: /opt/cloudera/security/jks/truststore.jks
+  register: truststore_created
+  when: "'cdh-manager' in group_names"
+
+- name: Add to trustore all CDH nodes certificates on cdh-manager
+  command: keytool -importcert -noprompt -keystore /opt/cloudera/security/jks/truststore.jks -alias {{ item }} -file /opt/cloudera/security/x509/{{ item }}.pem -storepass {{ store_pass }}
+  with_items: "{{ groups['cdh-all'] }}"
+  when: "'cdh-manager' in group_names and truststore_created.changed"
+
+- name: Fetching trustore with all CDH nodes certificates to Ansible machine
+  fetch: dest={{ lookup('env','HOME') }}/tmp/truststore.jks flat=yes src=/opt/cloudera/security/jks/truststore.jks validate_checksum=yes
+  when: "'cdh-manager' in group_names"
+
+- name: Copy trustore with all CDH nodes certificates to cdh nodes from Ansible machine
+  copy: backup=yes dest=/opt/cloudera/security/jks/truststore.jks group=root mode=0644 owner=root src={{ lookup('env','HOME') }}/tmp/truststore.jks
+  when: "'cdh-manager' not in group_names"
+
+- name: Create file with password for keystore and truststore
+  copy: content="{{ store_pass }}" dest=/opt/cloudera/security/storepass.pw
+
+- name: Create copy of java truststore
+  command: cp /usr/java/jdk1.8.0_72/jre/lib/security/cacerts /usr/java/jdk1.8.0_72/jre/lib/security/jssecacerts
+  args:
+    creates: /usr/java/jdk1.8.0_72/jre/lib/security/jssecacerts
+  register: java_truststore_created
+  when: "'cdh-manager' in group_names"
+
+- name: Add RootCA to copy of java truststore
+  command: keytool -importcert -noprompt -alias RootCA -keystore /usr/java/jdk1.8.0_72/jre/lib/security/jssecacerts -file /opt/cloudera/security/CAcerts/RootCA.pem -storepass {{ java_pass }}
+  when: "'cdh-manager' in group_names and java_truststore_created.changed"
+
+### Configuring TLS Security for Cloudera Manager and CDH nodes
+- name: Enable HTTPS for the Cloudera Manager Admin Console and Specify Server Keystore Properties
+  cdh: 
+    action: set_config 
+    password: "{{ cdh_admin_password }}"
+    entity: service 
+    service: cm
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'KEYSTORE_PATH', value: "/opt/cloudera/security/jks/keystore.jks" }
+    - { name: 'KEYSTORE_PASSWORD', value: "{{ store_pass }}" }
+    - { name: 'WEB_TLS', value: "true" }
+    - { name: 'AGENT_TLS', value: "true" }
+    - { name: 'NEED_AGENT_VALIDATION', value: "true" }
+    - { name: 'TRUSTSTORE_PATH', value: "/opt/cloudera/security/jks/truststore.jks" }
+    - { name: 'TRUSTSTORE_PASSWORD', value: "{{ store_pass }}" }
+  when: "'cdh-manager' in group_names"
+
+- name: Specify SSL Truststore Properties for Cloudera Management Services
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service 
+    service: management
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { "name": 'ssl_client_truststore_location', value: "/usr/java/jdk1.8.0_72/jre/lib/security/jssecacerts" }
+    - { "name": 'ssl_client_truststore_password', value: "{{ java_pass }}" }
+  when: "'cdh-manager' in group_names"
+
+- name: Enable and Configure TLS on the Agent Hosts
+  lineinfile: dest=/etc/cloudera-scm-agent/config.ini regexp='.*use_tls=.*' line=use_tls=1
+
+- name: Point this property to the RootCA.pem
+  lineinfile: dest=/etc/cloudera-scm-agent/config.ini regexp='.*verify_cert_file=.*' line=verify_cert_file=/opt/cloudera/security/CAcerts/RootCA.pem
+
+- name: Point this property to the client key file
+  lineinfile: dest=/etc/cloudera-scm-agent/config.ini regexp='.*client_key_file=.*' line=client_key_file=/opt/cloudera/security/x509/{{ inventory_hostname }}.key
+
+- name: Point this property to the client key password file, keystore.pw
+  lineinfile: dest=/etc/cloudera-scm-agent/config.ini regexp='.*client_keypw_file=.*' line=client_keypw_file=/opt/cloudera/security/storepass.pw
+
+- name: Point this property to the client certificate file
+  lineinfile: dest=/etc/cloudera-scm-agent/config.ini regexp='.*client_cert_file=.*' line=client_cert_file=/opt/cloudera/security/x509/{{ inventory_hostname }}.pem
+
+- name: Configuring TLS/SSL for HDFS
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hdfs
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'ssl_server_keystore_location', value: "/opt/cloudera/security/jks/keystore.jks" }
+    - { name: 'ssl_server_keystore_password', value: "{{ store_pass }}" }
+    - { name: 'ssl_server_keystore_keypassword', value: "{{ store_pass }}" }
+    - { name: 'ssl_client_truststore_location', value: "/opt/cloudera/security/jks/truststore.jks" }
+    - { name: 'ssl_client_truststore_password', value: "{{ store_pass }}" }
+    - { name: 'hdfs_hadoop_ssl_enabled', value: "true" }
+    - { name: 'dfs_data_transfer_protection', value: "authentication" }
+  when: "'cdh-manager' in group_names"
+
+- name: Change DataNode Transceiver Port to recomended TLS/SSL settings for HDFS
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hdfs
+    role: DATANODE
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'dfs_datanode_port', value: '50010' }
+  when: "'cdh-manager' in group_names"
+
+- name: Configuring TLS/SSL for YARN
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: yarn
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'ssl_server_keystore_location', value: "/opt/cloudera/security/jks/keystore.jks" }
+    - { name: 'ssl_server_keystore_password', value: "{{ store_pass }}" }
+    - { name: 'ssl_server_keystore_keypassword', value: "{{ store_pass }}" }
+    - { name: 'ssl_client_truststore_location', value: "/opt/cloudera/security/jks/truststore.jks" }
+    - { name: 'ssl_client_truststore_password', value: "{{ store_pass }}" }
+  when: "'cdh-manager' in group_names"
+
+- name: Configuring TLS/SSL for HBase Web UIs
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hbase
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'ssl_server_keystore_location', value: "/opt/cloudera/security/jks/keystore.jks" }
+    - { name: 'ssl_server_keystore_password', value: "{{ store_pass }}" }
+    - { name: 'ssl_server_keystore_keypassword', value: "{{ store_pass }}" }
+    - { name: 'hbase_hadoop_ssl_enabled', value: "true" }
+  when: "'cdh-manager' in group_names"
+
+- name: Configuring TLS/SSL for HBase REST Server
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hbase
+    role: HBASERESTSERVER 
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'hbase_restserver_keystore_file', value: "/opt/cloudera/security/jks/keystore.jks" }
+    - { name: 'hbase_restserver_keystore_password', value: "{{ store_pass }}" }
+    - { name: 'hbase_restserver_keystore_keypassword', value: "{{ store_pass }}" }
+    - { name: 'hbase_restserver_ssl_enable', value: "true" }
+  when: "'cdh-manager' in group_names"
+
+- name: Configuring TLS/SSL for HBase Thrift Server
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hbase
+    role: HBASETHRIFTSERVER
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'hbase_thriftserver_http_keystore_file', value: "/opt/cloudera/security/jks/keystore.jks" }
+    - { name: 'hbase_thriftserver_http_keystore_password', value: "{{ store_pass }}" }
+    - { name: 'hbase_thriftserver_http_keystore_keypassword', value: "{{ store_pass }}" }
+    - { name: 'hbase_thriftserver_http_use_ssl', value: "true" }
+  when: "'cdh-manager' in group_names"
+
+- name: Configuring TLS/SSL for HiveServer2
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hive
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'hiveserver2_keystore_path', value: "/opt/cloudera/security/jks/keystore.jks" }
+    - { name: 'hiveserver2_keystore_password', value: "{{ store_pass }}" }
+    - { name: 'hiveserver2_enable_ssl', value: "true" }
+  when: "'cdh-manager' in group_names"
+
+- name: Configuring TLS/SSL for Hue
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hue 
+    role: HUE_SERVER
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'ssl_certificate', value: "/opt/cloudera/security/x509/{{ inventory_hostname }}.pem" }
+    - { name: 'ssl_private_key', value: "/opt/cloudera/security/x509/{{ inventory_hostname }}.key" }
+    - { name: 'ssl_cacerts', value: "/opt/cloudera/security/CAcerts/RootCA.pem" }
+    - { name: 'ssl_enable', value: "{{ enable_external_ssl }}" }
+  when:
+    - "'cdh-manager' in group_names"
+
+- name: Configuring TLS/SSL for Oozie service
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: oozie
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'oozie_use_ssl', value: "true" }
+  when: "'cdh-manager' in group_names"
+
+- name: Configuring TLS/SSL for Oozie role OOZIE_SERVER
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: oozie
+    role: OOZIE_SERVER
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'oozie_https_keystore_file', value: "/opt/cloudera/security/jks/keystore.jks" }
+    - { name: 'oozie_https_keystore_password', value: "{{ store_pass }}" }
+  when: "'cdh-manager' in group_names"
+
+- name: Configuring TLS/SSL for HttpFS
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hdfs
+    role: HTTPFS
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'httpfs_https_keystore_file', value: "/opt/cloudera/security/jks/keystore.jks" }
+    - { name: 'httpfs_https_keystore_password', value: "{{ store_pass }}" }
+    - { name: 'httpfs_https_truststore_file', value: "/opt/cloudera/security/jks/truststore.jks" }
+    - { name: 'httpfs_https_truststore_password', value: "{{ store_pass }}" }
+    - { name: 'httpfs_use_ssl', value: "true" }
+  when: "'cdh-manager' in group_names"
+
+##### Restart CDH Manager Server, Manager Agents, Management Service and Cluster
+- name: Check to see if security settings configured
+  stat: 
+    path: /opt/cloudera/security/ssl_configured
+  register: restart
+
+- name: Restart the Cloudera Manager Server
+  service: 
+    name: cloudera-scm-server 
+    state: restarted
+  when: "'cdh-manager' in group_names and restart.stat.exists == false"
+
+- name: Restart the Cloudera Manager Agents
+  service: 
+    name: cloudera-scm-agent
+    state: restarted
+  when: restart.stat.exists == false
+
+- name: wait for port 7183 (cloudera manager) to become accessible
+  wait_for:
+    port: 7183
+    delay: 60
+  when: "'cdh-manager' in group_names"
+
+- name: Restart the Cloudera Management Service
+  cdh: 
+    action: service
+    password: "{{ cdh_admin_password }}"
+    service: cm
+    state: restarted
+  when: "'cdh-manager' in group_names and restart.stat.exists == false"
+
+- name: Restart all services in the cluster
+  cdh: 
+    action: cluster
+    password: "{{ cdh_admin_password }}"
+    state: restarted
+  register: cluster_restart
+  when: "'cdh-manager' in group_names and restart.stat.exists == false"
+
+- name: Create a file after succesful security configuration
+  file: 
+    path: /opt/cloudera/security/ssl_configured
+    state: touch
+  register: cluster_restart
+  when: cluster_restart|success and restart.stat.exists == false

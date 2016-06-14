@@ -1,0 +1,90 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Setup mysql server.
+#
+# Install mysql server and change default root user.
+#
+###
+---
+
+- name: install mysql
+  yum: 
+    pkg: "{{ item }}" 
+    state: installed
+  with_items:
+    - mysql-community-server
+    - MySQL-python
+
+- name: set mysql data location
+  set_fact:
+    mysql_data_dir: "/data/main/mysql"
+
+- name: create mysql data directory
+  file:
+    path: "{{ mysql_data_dir }}"
+    state: directory
+    owner: mysql 
+    group: mysql
+    mode: 0755
+
+- name: configure mysql server
+  template: 
+    src: mysql.cnf.j2 
+    dest: /etc/my.cnf
+    mode: 0644
+
+- name: start mysqld
+  service:
+    name: mysqld
+    state: started
+    enabled: yes
+
+- name: Check if root password is set
+  mysql_user:
+    user: "{{ database.user }}"
+    password: "{{ hostvars[groups['k8s-master'][0]].passwords.databases.database }}"
+    login_user: "{{ database.user }}"
+    login_password: "{{ hostvars[groups['k8s-master'][0]].passwords.databases.database }}"
+    login_unix_socket: /data/main/mysql/mysql.sock
+  register: RootPasswordSet
+  ignore_errors: yes
+
+- name: Change default password for root
+  mysql_user:
+    user: "{{ database.user }}"
+    password: "{{ hostvars[groups['k8s-master'][0]].passwords.databases.database }}"
+    login_unix_socket: /data/main/mysql/mysql.sock
+  when: RootPasswordSet|failed
+
+- name: Delete anonymous users
+  mysql_user:
+    user: ""
+    state: absent
+    login_user: "{{ database.user }}"
+    login_password: "{{ hostvars[groups['k8s-master'][0]].passwords.databases.database }}"
+    login_unix_socket: /data/main/mysql/mysql.sock
+
+- name: Delete test table
+  mysql_db:
+    name: test
+    state: absent
+    login_user: "{{ database.user }}"
+    login_password: "{{ hostvars[groups['k8s-master'][0]].passwords.databases.database }}"
+    login_unix_socket: /data/main/mysql/mysql.sock
+

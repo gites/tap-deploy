@@ -1,0 +1,97 @@
+spring_profiles: postgresql,default
+servlet:
+  session-cookie:
+    max-age: 1800
+database:
+  driverClassName: org.postgresql.Driver
+  url: jdbc:postgresql://uaa-postgres:5432/uaa
+  username: 'uaa'
+  password: {{ hostvars[groups['k8s-master'][0]].passwords.uaa.uaa_postgres_pass }}
+  maxactive: 100
+  maxidle: 10
+  removeabandoned: false
+  logabandoned: true
+  abandonedtimeout: 300
+  evictionintervalms: 15000
+scim:
+  users:
+    - taptester|donotchange|taptester@example.com|TAP|Tester|uaa.admin,tap.admin
+    - admin|{{ platform_admin_password }}|admin@example.com|TAP|Admin|uaa.admin,tap.admin
+  groups: zones.read,zones.write,idps.read,idps.write,clients.admin,clients.write,clients.read,clients.secret,scim.write,scim.read,scim.create,scim.userids,scim.zones,scim.invite,password.write,oauth.approval,oauth.login,openid,groups.update,uaa.user,uaa.resource,uaa.admin,uaa.none,tap.admin,tap.user
+oauth:
+  user:
+    authorities:
+      - openid
+      - scim.me
+      - cloud_controller.read
+      - cloud_controller.write
+      - cloud_controller_service_permissions.read
+      - password.write
+      - scim.userids
+      - uaa.user
+      - approvals.me
+      - oauth.approvals
+      - profile
+      - roles
+      - user_attributes
+      - tap.user
+  clients:
+    admin:
+      secret: {{ hostvars[groups['k8s-master'][0]].passwords.uaa.admin_secret }}
+      authorized-grant-types: client_credentials,password,implicit,refresh_token,authorization_code
+      scope: openid,uaa.admin
+      authorities: uaa.admin,clients.read,clients.write,clients.secret,scim.read,scim.write,tap.admin
+    consoleSvc:
+      secret: {{ hostvars[groups['k8s-master'][0]].passwords.uaa.consolesvc_secret }}
+      authorized-grant-types: implicit,password,refresh_token
+      scope: uaa.admin,openid,password.write,tap.admin,tap.user,password.write
+      authorities: uaa.resource,tap.admin
+      autoapprove: true
+    login:
+      authorities: oauth.login,scim.write,clients.read,notifications.write,critical_notifications.write,emails.write,scim.userids,password.write
+      authorized-grant-types: authorization_code,client_credentials,refresh_token
+      redirect-uri: http://login.FIXME
+      scope: openid,oauth.approvals
+      secret: {{ hostvars[groups['k8s-master'][0]].passwords.uaa.login_secret }}
+    {{ hostvars[groups['k8s-master'][0]].passwords.uaa.console_client }}:
+      authorities: oauth.login,scim.read,scim.write,clients.read,notifications.write,critical_notifications.write,emails.write,scim.userids,password.write,uaa.resource,tap.user,tap.admin,clients.write
+      authorized-grant-types: authorization_code,client_credentials,refresh_token
+      redirect-uri: '{{ external_protocol }}://console.{{ tap_domain_name }}/oauth/callback'
+      scope: openid,oauth.approvals,tap.admin,tap.user,uaa.admin,password.write
+      secret: {{ hostvars[groups['k8s-master'][0]].passwords.uaa.console_secret }}
+      autoapprove: true
+    grafana:
+      authorities: uaa.user,scim.read,uaa.admin,zones.uaa.admin
+      authorized-grant-types: authorization_code,refresh_token,client_credentials
+      autoapprove: true
+      redirect-uri: '{{ external_protocol }}://grafana.{{ tap_domain_name }}/login/generic_oauth'
+      scope: openid
+      secret: {{ hostvars[groups['k8s-master'][0]].passwords.uaa.grafana_secret }}
+    hue:
+      secret: {{ hostvars[groups['k8s-master'][0]].passwords.uaa.hue_secret }}
+      authorized-grant-types: authorization_code,refresh_token
+      scope: hue.admin,scim.read,scim.userids,uaa.user
+      autoapprove: true
+      authorities: uaa.user,oauth.login
+      redirect-uri: '{{ external_protocol }}://hue.{{ tap_domain_name }}/oauth/callback'
+    kibana:
+      secret: {{ hostvars[groups['k8s-master'][0]].passwords.uaa.kibana_secret }}
+      authorized-grant-types: authorization_code,refresh_token
+      scope: openid,cloud_controller.read
+      autoapprove: true
+      redirect-uri: '{{ external_protocol }}://kibana.{{ tap_domain_name }}'
+      
+jwt:
+  token:
+    verification-key: |
+{{ hostvars[groups['k8s-ca'][0]].jwt_public_keypart|indent(6, true) }}
+    signing-key: |
+{{ hostvars[groups['k8s-ca'][0]].jwt_private_keypart|indent(6, true) }}
+    claims:
+      exclude:
+        - authorities
+    policy:
+      keys:
+        key-id-1:
+          signingKey: |
+{{ hostvars[groups['k8s-ca'][0]].jwt_private_keypart|indent(12, true) }}

@@ -1,0 +1,69 @@
+# Config map contains all Hadoop configuration keys
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: cloudera-config
+  labels:
+    id: cloudera-config
+    managed_by: "TAP"
+data:
+  warehouse.principal: "{{ hadoop_warehouse_principal }}"
+  sentry.host: "{{ sentry_host }}"
+  sentry.port: "{{ sentry_port }}"
+  sentry.principal: "{{ sentry_principal }}"
+  hive.jdbc: "{{ hive_jdbc }}"
+  hive.server.thrift.host: "{{ hive_server_thrift_host }}"
+  hive.server.thrift.port: "{{ hive_server_thrift_port }}"
+  hive.principal: "{{ hive_principal }}"
+  impala.availability: "{{ impala_availability }}"
+  impala.jdbc: "{{ impala_jdbc }}"
+  hgm.host: "{{ hgm_host }}"
+  hgm.user: "{{ hgm_user }}"
+  hgm.password: "{{ hgm_password }}"
+  hgm.principal: "{{ hgm_principal }}"
+  hdfs.superuser: "{{ hdfs_superuser }}"
+  hdfs.principal: "{{ hdfs_principal }}"
+  hdfs.hiveuser: "{{ hdfs_hiveuser }}"
+  cloudera.manager.host: "{{ cloudera_manager_host }}"
+  cloudera.manager.url: "https://{{ cloudera_manager_host }}:{{ cloudera_port }}"
+  cloudera.user: "{{ cloudera_user }}"
+  cloudera.password: "{{ cloudera_password }}"
+  cloudera.port: "{{ cloudera_port }}"
+  zookeeper.cluster.host: "{{ zookeeper_cluster_host }}"
+  oozie.server: "https://{{ oozie_server }}:11443"
+  sqoop.metastore: "jdbc:hsqldb:hsql://{{ sqoop_metastore }}:16000/sqoop"
+  kafka.uri: "{{ kafka_uri }}"
+  kafka.zookeeper.cluster.host: "{{ zookeeper_cluster_host }}/kafka"
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kerberos-config
+  labels:
+    id: kerberos-config
+    managed_by: "TAP"
+data:
+  krb5.conf: |-
+{{ krb5conf.config["krb5.conf"] | b64decode | indent(4, true)}}
+  krb.kdc: "{{ krb_kdc }}"
+  krb.realm: "{{ krb_realm }}"
+  krb.enabled: "{{ krb_enabled }}"
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kerberos-tap-config
+  labels:
+    id: kerberos-tap-config
+    managed_by: "TAP"
+data:
+  krb5.conf: |-
+{{ krb5conf.config["krb5.conf"] | b64decode | indent(4, true)}}
+  krb.user: "{{ tap_principal }}"
+  krb.password: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.tap }}'
+  krb.kdc: "{{ krb_kdc }}"
+  krb.realm: "{{ krb_realm }}"
+  krb.enabled: "{{ krb_enabled }}"

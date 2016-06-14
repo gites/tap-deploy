@@ -1,0 +1,273 @@
+{
+  "broker_name": "cloudera-config-broker",
+  "template": {
+    "body": [
+      {
+      "componentType": "broker",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "short_instance_id": "$short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "managed_by": "TAP",
+                "short_instance_id": "$short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "short_instance_id": "$short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "spec": {
+                "containers": [
+                  {
+                    "name": "cloudera-config-broker",
+                    "image": "$repository_uri/tap-base-configmap-broker:curl-latest",
+                    "ports": [
+                      {
+                        "containerPort": 80,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "command": [
+                      "/bin/bash"
+                    ],
+                    "args": [
+                      "-c",
+                      "while true; do sleep 1; done"
+                    ],
+                    "resources": {},
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "short_instance_id": "$short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 80
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "short_instance_id": "$short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": {
+      "provision": {
+        "kind": "Pod",
+        "apiVersion": "v1",
+        "metadata": {
+          "name": "$short_instance_id-provision-$random_dns1",
+          "creationTimestamp": null,
+          "labels": {
+            "managed_by": "TAP",
+            "instance_id": "$instance_id"
+          }
+        },
+        "spec": {
+          "volumes": null,
+          "containers": [
+            {
+              "name": "$short_instance_id-provision",
+              "image": "$repository_uri/tap-base-configmap-broker:curl-latest",
+              "env": [
+                {
+                  "name": "ACTION",
+                  "value": "CREATE_DATAMAP"
+                },
+                {
+                  "name": "CONFIGMAP_NAME",
+                  "value": "cloudera-config"
+                },
+                {
+                  "name": "CONFIGMAP_SERVICE_NAME",
+                  "value": "container-broker"
+                },
+                {
+                  "name": "CONFIGMAP_SERVICE_URL",
+                  "value": "/api/v1/configmap"
+                },
+                {
+                  "name": "CONFIGMAP_SERVICE_USER",
+                  "valueFrom": {
+                    "configMapKeyRef": {
+                      "name": "container-broker",
+                      "key": "user"
+                    }
+                  }
+                },
+                {
+                  "name": "CONFIGMAP_SERVICE_PASS",
+                  "valueFrom": {
+                    "configMapKeyRef": {
+                      "name": "container-broker",
+                      "key": "pass"
+                    }
+                  }
+                }
+              ],
+              "resources": {},
+              "imagePullPolicy": "IfNotPresent"
+            }
+          ],
+          "restartPolicy": "Never",
+          "dnsPolicy": "ClusterFirst",
+          "serviceAccountName": ""
+        }
+      },
+      "bind": {
+        "kind": "Pod",
+        "apiVersion": "v1",
+        "metadata": {
+          "name": "$short_instance_id-bind-$random_dns1",
+          "creationTimestamp": null,
+          "labels": {
+            "managed_by": "TAP",
+            "instance_id": "$instance_id"
+          }
+        },
+        "spec": {
+          "volumes": null,
+          "containers": [
+            {
+              "name": "$short_instance_id-bind",
+              "image": "$repository_uri/tap-base-configmap-broker:curl-latest",
+              "env": [
+                {
+                  "name": "ACTION",
+                  "value": "CREATE_VCAP"
+                },
+                {
+                  "name": "CONFIGMAP_NAME",
+                  "value": "cloudera-config"
+                },
+                {
+                  "name": "CONFIGMAP_SERVICE_NAME",
+                  "value": "container-broker"
+                },
+                {
+                  "name": "CONFIGMAP_SERVICE_URL",
+                  "value": "/api/v1/configmap"
+                },
+                {
+                  "name": "CONFIGMAP_SERVICE_USER",
+                  "valueFrom": {
+                    "configMapKeyRef": {
+                      "name": "container-broker",
+                      "key": "user"
+                    }
+                  }
+                },
+                {
+                  "name": "CONFIGMAP_SERVICE_PASS",
+                  "valueFrom": {
+                    "configMapKeyRef": {
+                      "name": "container-broker",
+                      "key": "pass"
+                    }
+                  }
+                }
+              ],
+              "resources": {},
+              "imagePullPolicy": "IfNotPresent"
+            }
+          ],
+          "restartPolicy": "Never",
+          "dnsPolicy": "ClusterFirst",
+          "serviceAccountName": ""
+        }
+      }
+    }
+  },
+  "services": [
+    {
+      "name": "cloudera-config-broker",
+      "description": "The broker exposes the cloudera-config k8s config map as a service.",
+      "metadata": [],
+      "bindable": true,
+      "tags": ["cloudera-config"],
+      "plans": [
+        {
+          "name": "shared",
+          "description": "Shared plan",
+          "cost": "free"
+        }
+      ]
+    }
+  ]
+}

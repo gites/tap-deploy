@@ -1,0 +1,7 @@
+KUBE_ADMISSION_CONTROL="--admission-control=LimitRanger,NamespaceLifecycle,ResourceQuota,ServiceAccount,SecurityContextDeny"
+KUBE_API_ADDRESS="--insecure-bind-address=127.0.0.1 --bind-address=0.0.0.0"
+KUBE_API_ARGS="--apiserver-count={{ groups['k8s-master'] | length }}"
+KUBE_API_PORT="--insecure-port={{ k8s_api_insecure_port }} --secure-port={{ k8s_api_secure_port }}"
+KUBE_ETCD_SERVERS="--etcd-servers={% for node in groups['k8s-etcd'] %}http{% if etcd.k8s.enable_ssl %}s{% endif %}://{{ node }}:{{ etcd.k8s.client_port }}{% if not loop.last %},{% endif %}{% endfor %}"
+KUBE_SERVICE_ADDRESSES="--service-cluster-ip-range={{ k8s_service_ip_range }}"
+KUBE_TLS_ARGS="--etcd-cafile=/etc/kubernetes/ssl/ca.crt --etcd-certfile=/etc/kubernetes/ssl/{{ inventory_hostname }}.apiserver.crt --etcd-keyfile=/etc/kubernetes/ssl/{{ inventory_hostname }}.apiserver.key --kubelet-https=true --tls-cert-file=/etc/kubernetes/ssl/{{ inventory_hostname }}.apiserver.crt --tls-private-key-file=/etc/kubernetes/ssl/{{ inventory_hostname }}.apiserver.key --client-ca-file=/etc/kubernetes/ssl/ca.crt --service-account-key-file=/etc/kubernetes/ssl/service-account.key"

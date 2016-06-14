@@ -1,0 +1,219 @@
+{
+  "template" : {
+    "body": [
+      {
+      "componentType" : "instance",
+      "persistentVolumeClaims" : null,
+      "deployments" : [{
+        "kind" : "Deployment",
+        "apiVersion" : "extensions/v1beta1",
+        "metadata" : {
+          "name" : "sp-$idx_and_short_instance_id",
+          "labels" : {
+            "plan_id": "$plan_id",
+            "offering_id": "$offering_id",
+            "idx_and_short_instance_id" : "$idx_and_short_instance_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "space" : "$space"
+          }
+        },
+        "spec" : {
+          "replicas" : 1,
+          "selector" : {
+            "matchLabels" : {
+              "idx_and_short_instance_id" : "$idx_and_short_instance_id",
+              "instance_id" : "$instance_id"
+            }
+          },
+          "template" : {
+            "metadata" : {
+              "labels" : {
+                "idx_and_short_instance_id" : "$idx_and_short_instance_id",
+                "managed_by" : "TAP",
+                "instance_id" : "$instance_id"
+              }
+            },
+            "spec" : {
+              "containers" : [{
+                "name" : "scoring-pipelines",
+                "image" : "$repository_uri/scoring-pipelines:0.8.0",
+                "resources" : {
+                  "limits" : {
+                    "memory" : "500M"
+                  },
+                  "requests" : {
+                    "memory" : "500M"
+                  }
+                },
+                "ports" : [{
+                  "containerPort" : 80,
+                  "protocol" : "TCP"
+                }
+                ],
+                "env" : [{
+                  "name" : "MANAGED_BY",
+                  "value" : "TAP"
+                },
+                  { "name" : "KAFKA_URI",
+                    "valueFrom": {
+                      "configMapKeyRef": {
+                        "name": "cloudera-config",
+                        "key": "kafka.uri"
+                      }
+                    }
+                  },
+                  {
+                    "name" : "KAFKA_ZK_CLUSTER_HOST",
+                    "valueFrom": {
+                      "configMapKeyRef": {
+                        "name": "cloudera-config",
+                        "key": "kafka.zookeeper.cluster.host"
+                      }
+                    }
+                  }
+                ],
+                "imagePullPolicy" : "IfNotPresent"
+              }
+              ],
+              "restartPolicy" : "Always",
+              "dnsPolicy" : "ClusterFirst",
+              "serviceAccountName" : ""
+            }
+          },
+          "strategy" : {}
+        },
+        "status" : {}
+      }
+      ],
+      "services" : [{
+        "kind" : "Service",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "sp-$idx_and_short_instance_id",
+          "creationTimestamp" : null,
+          "labels" : {
+            "plan_id" : "$plan_id",
+            "offering_id" : "$offering_id",
+            "idx_and_short_instance_id" : "$idx_and_short_instance_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "instance_name" : "$instance_name",
+            "space" : "$space"
+          }
+        },
+        "spec" : {
+          "type" : "ClusterIP",
+          "ports" : [{
+            "protocol" : "TCP",
+            "port" : 80,
+            "targetPort" : 80
+          }
+          ],
+          "selector" : {
+            "instance_id" : "$instance_id"
+          }
+        },
+        "status" : {
+          "loadBalancer" : {}
+        }
+      }
+      ],
+      "serviceAccounts" : [{
+        "kind" : "ServiceAccount",
+        "apiVersion" : "extensions/v1beta1",
+        "metadata" : {
+          "name" : "$idx_and_short_instance_id",
+          "creationTimestamp" : null,
+          "labels" : {
+            "plan_id" : "$plan_id",
+            "offering_id" : "$offering_id",
+            "idx_and_short_instance_id" : "$idx_and_short_instance_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "instance_name" : "$instance_name",
+            "space" : "$space"
+          }
+        },
+        "secrets" : null
+      }
+      ],
+      "ingresses" : [{
+        "apiVersion" : "extensions/v1beta1",
+        "kind" : "Ingress",
+        "metadata" : {
+          "annotations": {
+            "useExternalSsl": "$use_external_ssl"
+          },
+          "name" : "sp-$idx_and_short_instance_id",
+          "labels" : {
+            "plan_id" : "$plan_id",
+            "offering_id" : "$offering_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "instance_name" : "$instance_name",
+            "space" : "$space"
+          }
+        },
+        "spec" : {
+          "rules" : [{
+            "host" : "$instance_name.$domain_name",
+            "http" : {
+              "paths" : [{
+                "path" : "/",
+                "backend" : {
+                  "serviceName" : "sp-$idx_and_short_instance_id",
+                  "servicePort" : 80
+                }
+              }
+              ]
+            }
+          }
+          ]
+        }
+      }
+      ]
+      }
+    ]
+  },
+  "services" : [{
+    "name" : "scoring-pipelines",
+    "description" : "Scoring Pipelines for TAP Analytics Toolkit models and python UDFs",
+    "metadata" : [{
+      "key" : "displayName",
+      "value" : "Scoring Pipelines"
+    }, {
+      "key" : "imageUrl",
+      "value" : ""
+    }, {
+      "key" : "longDescription",
+      "value" : "Scoring Pipelines for TAP Analytics Toolkit models and python UDFs"
+    }, {
+      "key" : "providerDisplayName",
+      "value" : "Scoring Pipelines"
+    }, {
+      "key" : "documentationUrl",
+      "value" : "https://github.com/trustedanalytics-ng/scoring-pipelines"
+    }, {
+      "key" : "supportUrl",
+      "value" : "https://github.com/trustedanalytics-ng/scoring-pipelines"
+    }
+    ],
+    "bindable" : true,
+    "tags" : [
+      "sp",
+      "scoring-pipelines"
+    ],
+    "plans" : [{
+      "name" : "single",
+      "description" : "Create a single instance of Scoring Pipelines. Resources Used: 1 Compute Node and 500M of Memory. No persistent volumes are attached to this instance.",
+      "cost" : "free"
+    }
+    ]
+  }
+  ]
+}

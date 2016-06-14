@@ -1,0 +1,51 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Enable HTTP proxy
+  set_fact:
+    java_http_proxy: "-Dhttp.proxyHost={{ proxy_for_apps.http_proxy | to_hostname }} -Dhttp.proxyPort={{ proxy_for_apps.http_proxy | to_port }}"
+  when: proxy_for_apps.http_proxy != None
+
+- name: Disable HTTP proxy
+  set_fact:
+    java_http_proxy: ""
+  when: proxy_for_apps.http_proxy == None
+
+- name: Enable HTTPS proxy
+  set_fact:
+    java_https_proxy: "-Dhttps.proxyHost={{ proxy_for_apps.https_proxy | to_hostname }} -Dhttps.proxyPort={{ proxy_for_apps.https_proxy | to_port }}"
+  when: proxy_for_apps.https_proxy != None
+
+- name: Disable HTTPS proxy
+  set_fact:
+    java_https_proxy: ""
+  when: proxy_for_apps.https_proxy == None
+
+- name: Set noProxyHosts
+  set_fact:
+    java_no_proxy: "-Dhttp.nonProxyHosts={{ proxy_for_apps.no_proxy | to_java_format }}|data-acquisition"
+  when: proxy_for_apps.no_proxy != None
+
+- name: Disable noProxyHosts
+  set_fact:
+    java_no_proxy: ""
+  when: proxy_for_apps.no_proxy == None
+
+- name: Combine proxy settings
+  set_fact:
+    java_proxy_opts: "{{ java_http_proxy }} {{ java_https_proxy }} {{ java_no_proxy }}"

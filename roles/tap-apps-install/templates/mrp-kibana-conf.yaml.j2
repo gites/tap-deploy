@@ -1,0 +1,11 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mrp-kibana-conf
+  namespace: kube-system
+  labels:
+      managed_by: "TAP"
+data:
+  nginx.conf: |-
+{{ lookup('template', 'mrp-kibana-conf.j2') | indent(4, true) }}

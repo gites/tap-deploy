@@ -1,0 +1,309 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- include: check-health.yml
+  vars:
+    instance_map:
+      - from: "{{ groups['all'] }}"
+        to: "{{ groups['all'] }}"
+
+- include: check-vars.yml
+  vars:
+    required_params:
+      - { name: 'tap_version', hosts: "{{ groups['all'] }}", allow_empty: false }
+      - { name: 'platform_admin_password', hosts: "{{ groups['all'] }}", allow_empty: false }
+      - { name: 'cdh_admin_password', hosts: "{{ groups['all'] }}", allow_empty: false }
+      - { name: 'tap_domain_name', hosts: "{{ groups['all'] }}", allow_empty: false }
+      - { name: 'smtp_host', hosts: "{{ groups['all'] }}", allow_empty: false }
+      - { name: 'smtp_password', hosts: "{{ groups['all'] }}", allow_empty: true }
+      - { name: 'smtp_port', hosts: "{{ groups['all'] }}", allow_empty: false }
+      - { name: 'smtp_protocol', hosts: "{{ groups['all'] }}", allow_empty: false }
+      - { name: 'smtp_username', hosts: "{{ groups['all'] }}", allow_empty: true }
+
+- include: check-vars.yml
+  vars:
+    required_params:
+      - { name: 'dns', hosts: "{{ groups['all'] }}", allow_empty: false }
+  when: not dns_isolation
+
+- name:
+  hosts: jumpbox
+  any_errors_fatal: true
+  roles:
+    - { role: jumpbox-init }
+
+- hosts: localhost
+  tasks:
+  - name: Unarchive kernel rpm packages
+    shell: >-
+      tar -zxf {{ playbook_dir }}/files/repository.tar.gz
+      -C {{ playbook_dir }}/files
+      --strip-components 3
+      --wildcards
+      --no-anchored 'kernel-*'
+    args:
+      creates: "{{ playbook_dir }}/files/kernel-*"
+    when: upgrade_kernel
+
+- name:
+  hosts: k8s-node mons osds rgws
+  any_errors_fatal: true
+  become: True
+  roles:
+    - { role: tap-kernel-up, when: upgrade_kernel }
+
+- name:
+  hosts: k8s-master[0]
+  any_errors_fatal: true
+  roles:
+    - { role: tap-password-gen }
+    - { role: tap-repository-setup }
+    - { role: nginx-setup }
+    - { role: nginx-repository-config }
+
+- name:
+  hosts: all
+  any_errors_fatal: true
+  roles:
+    - { role: tap-host-init }
+
+- name: 
+  hosts: zabbix-db
+  any_errors_fatal: true
+  roles:
+    - { role: zabbix-db }
+
+- name: 
+  hosts: zabbix-server
+  any_errors_fatal: true
+  roles:
+    - { role: zabbix-server }
+
+- name: 
+  hosts: zabbix-web
+  any_errors_fatal: true
+  roles:
+    - { role: zabbix-web }
+    - { role: zabbix-import-template }
+
+- name:
+  hosts: all
+  any_errors_fatal: true
+  roles:
+    - { role: zabbix-agent, when: "{{ groups['zabbix-server']|length > 0 }}" }
+
+- name:
+  hosts: k8s-master[1:]
+  any_errors_fatal: true
+  roles:
+    - { role: nginx-setup }
+
+- name:
+  hosts: k8s-master
+  any_errors_fatal: true
+  roles:
+    - { role: nginx-router-config }
+
+- name:
+  hosts: jumpbox k8s-master
+  any_errors_fatal: true
+  roles:
+    - { role: k8s-cli-init }
+
+- name:
+  hosts: k8s-ca
+  any_errors_fatal: true
+  roles:
+    - { role: k8s-ca-gen }
+    - { role: k8s-ca-uaa-gen }
+
+- name:
+  hosts: k8s-etcd
+  any_errors_fatal: true
+  roles:
+    - { role: etcd-install }
+    - { role: etcd-config }
+
+- name:
+  hosts: k8s-node cdh-all
+  any_errors_fatal: true
+  roles:
+    - { role: flannel-install }
+
+- name:
+  hosts: k8s-node
+  any_errors_fatal: true
+  roles:
+    - { role: docker-setup }
+
+- name:
+  hosts: k8s-node cdh-all
+  any_errors_fatal: true
+  roles:
+    - { role: k8s-node-setup }
+
+- name:
+  hosts: k8s-master
+  any_errors_fatal: true
+  roles:
+    - { role: k8s-master-setup }
+
+- name:
+  hosts: k8s-worker
+  any_errors_fatal: true
+  roles:
+    - { role: k8s-worker-setup }
+
+- name:
+  hosts: k8s-node cdh-all
+  any_errors_fatal: true
+  roles:
+    - { role: k8s-kube-proxy-setup }
+
+- include: ceph.yml
+
+- name:
+  hosts: mons[0]
+  any_errors_fatal: true
+  roles:
+    - { role: tap-ceph-facts }
+
+- name:
+  hosts: k8s-master[0]
+  any_errors_fatal: true
+  roles:
+    - { role: tap-ceph-volumes }
+    - { role: k8s-ceph-secrets }
+
+- name:
+  hosts: k8s-worker
+  any_errors_fatal: true
+  roles:
+    - { role: k8s-docker-registry-boot-setup }
+
+- name:
+  hosts: k8s-master[0]
+  any_errors_fatal: true
+  roles:
+    - { role: k8s-docker-registry-setup }
+
+- name:
+  hosts: k8s-worker[0]
+  any_errors_fatal: true
+  roles:
+    - { role: tap-apps-push }
+
+- name:
+  hosts: k8s-master[0]
+  any_errors_fatal: true
+  roles:
+    - { role: k8s-skydns-setup }
+    - { role: k8s-ca-service-setup }
+
+- name:
+  hosts: k8s-master[0]
+  any_errors_fatal: true
+  roles:
+    - { role: tap-ceph-broker }
+
+- name:
+  hosts: cdh-all
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-host-init }
+
+- name:
+  hosts: cdh-manager
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-mysql-install }
+    - { role: cdh-mysql-config }
+
+- name:
+  hosts: cdh-manager
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-cm-vanilla-setup }
+
+- name:
+  hosts: cdh-all
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-agent-vanilla-setup }
+
+- name:
+  hosts: cdh-manager
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-services-vanilla-setup }
+
+- name:
+  hosts: cdh-master
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-kerberos-server-init, when: kerberos_enabled }
+
+- name: 
+  hosts: cdh-manager
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-kerberos-server-master-setup, when: kerberos_enabled }
+
+- name:
+  hosts: cdh-all
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-kerberos-client-setup, when: kerberos_enabled }
+
+- name:
+  hosts: cdh-master !cdh-manager
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-kerberos-server-slave-setup, when: kerberos_enabled }
+
+- name:
+  hosts: cdh-manager
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-kerberos-server-ha, when: kerberos_enabled }
+
+- name:
+  hosts: cdh-manager
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-cm-tap-configure }
+    - { role: cdh-services-tap-configure }
+
+- name:
+  hosts: cdh-all
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-agent-tap-configure }
+
+- hosts: cdh-all
+  any_errors_fatal: true
+  become: yes
+  serial: 1
+  roles:
+    - { role: cdh-ssl-certificates, when: use_ssl }
+
+- hosts: cdh-all
+  become: yes
+  any_errors_fatal: true
+  roles:
+    - { role: cdh-ssl-configure, when: use_ssl }

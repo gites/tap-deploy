@@ -1,0 +1,98 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+#TODO please remove ignore errors
+
+- name: CATALOG Get CertKey
+  uri:
+    url: "http://{{ ca_service_clusterip }}/api/v1/certkey/catalog"
+    method: GET
+    user: "{{ ca_service.user }}"
+    password: "{{ hostvars[groups['k8s-master'][0]].passwords.ca_service.pass }}"
+    force_basic_auth: yes
+    status_code: 200
+    return_content: yes
+    timeout: 60
+  register: certkey
+
+- name: CATALOG create cert and key secret for nginx
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Secret"
+      metadata:
+        name: "catalog-certkey"
+      data:
+        ssl.crt: "{{ certkey.json['cert'] | b64encode }}"
+        ssl.key: "{{ certkey.json['key'] | b64encode }}"
+
+- name: CATALOG create service
+  ignore_errors: yes
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Service"
+      apiVersion: "v1"
+      metadata:
+        name: "catalog"
+        labels:
+          app: "catalog"
+        annotations:
+          prometheus.io/scrape: 'true'
+      spec:
+        type: "ClusterIP"
+        selector:
+          app: "catalog"
+        ports:
+          - port: 80
+            protocol: "TCP"
+            name: "rest"
+          - port: 443
+            protocol: "TCP"
+            name: "rest-ssl"
+    state: present
+
+- name: CATALOG Create a ConfigMap instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "ConfigMap"
+      apiVersion: "v1"
+      metadata:
+        name: "catalog"
+        labels:
+          app: "catalog"
+      data:
+        kubernetes-service-name: "CATALOG"
+        host: "catalog"
+        port: "80"
+        ssl-port: "443"
+        user: "admin"
+        pass: "password"
+        broker-log-level: "INFO"
+        metrics-collecting-frequency: "15s"
+
+- name: CATALOG Create a deployment instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data: "{{ lookup('template', 'apps/catalog.deployment.j2') }}"

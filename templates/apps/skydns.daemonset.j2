@@ -1,0 +1,71 @@
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: kube-dns-v11
+  namespace: kube-system
+  labels:
+    app: kube-dns
+    version: v11
+    kubernetes.io/cluster-service: "true"
+spec:
+  template:
+    metadata:
+      labels:
+        app: kube-dns
+        version: v11
+        kubernetes.io/cluster-service: "true"
+    spec:
+      containers:
+      - name: skydns
+        args:
+        # command = "/skydns"
+        - -machines={{ etcd_skydns_machines }}
+        - -addr=0.0.0.0:53
+        - -ns-rotate=false
+        - -domain={{ local_domain }}
+        {% if not dns_isolation -%}
+        - -nameservers={{ recursive_dns }}
+        {% endif -%}
+        - -ca-cert=/etc/ssl/ca
+        - -tls-pem=/etc/ssl/cert
+        - -tls-key=/etc/ssl/key
+        image: "{{ repository_uri }}/skydns:2015-10-13-8c72f8c"
+        ports:
+        - containerPort: 53
+          name: dns
+          protocol: UDP
+        - containerPort: 53
+          name: dns-tcp
+          protocol: TCP
+        volumeMounts:
+          - name: etcd4skydns-ssl
+            mountPath: /etc/ssl
+            readOnly: true
+        resources:
+          limits:
+            # cpu: 100m
+            memory: "{{ skydns_memory_limit }}"
+          requests:
+            # cpu: 50m
+            memory: "{{ skydns_memory_limit }}"
+      - name: healthz
+        args:
+        - -cmd=nslookup kubernetes.default.svc.{{ local_domain }} 127.0.0.1 >/dev/null
+        - -port=8080
+        image: "{{ repository_uri }}/exechealthz:1.0"
+        ports:
+        - name: skydns-api
+          containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            # cpu: 10m
+            memory: "{{ skydns_exechealthz_memory_limit }}"
+          requests:
+            # cpu: 10m
+            memory: "{{ skydns_exechealthz_memory_limit }}"
+      dnsPolicy: Default
+      volumes:
+      - name: etcd4skydns-ssl
+        secret:
+          secretName: etcd4skydns-ssl

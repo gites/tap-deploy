@@ -1,0 +1,208 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-small"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "5120",
+                  "volume_name": "redis-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": [],
+                "containers": [
+                  {
+                    "name": "redis",
+                    "image": "$repository_uri/redis:3.0",
+                    "ports": [
+                      {
+                        "containerPort": 6379,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "REDIS_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-redis-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      },
+                      {
+                        "name": "REDIS_HOSTNAME",
+                        "value": "$short_instance_id"
+                      }
+                    ],
+                    "volumeMounts":[
+                      {
+                        "mountPath": "/data",
+                        "name": "redis-persistent-storage"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "512M"
+                      },
+                      "limits": {
+                        "memory": "512M"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 6379
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-redis-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "password": "$base64-$random1"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "redis-30",
+    "description": "In-memory data structure store, used as database, cache and message broker.",
+    "metadata":[
+      {"key":"displayName","value": "Redis 3.0"},
+      {"key":"imageUrl","value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACW1BMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3SOnW04AAAAyHRSTlMAAAECAwQFBgcICQsMDg8QERITFBUWFxgZGxwfISIkJSYoKissLS4vMDIzNDY3ODo7PD5AQURFR0lKS0xOUFFSU1RVVldYWVpbXF1eYGFkZmdoa2xub3BxcnN0dXd4eXp7fH1+gYKDhIWHiYqLjI6PkJGSlJWYmZqcnZ6foKGjpKWoqaytrrCytLW2t7i5u7y+v8DBwsXGx8nLzM3Oz9LT1NXX2Nna29zd3t/g4eLj5OXm5+jp6uvs7vDx8vP09fb3+Pn6+/z9/iQF5AgAAANESURBVHhe7ZZnU1NBFIZjCqFJEUGMhCJWLDRRMYqNpoISG0qxAXalgwoIiIAUESw0KSKKGiliAYL0kOT+LM9JmdmbzQ3J+MmR90MmM5ln4Nnd9+zyVvxF/iF4GeZxxlne1yd35v7dAuyXPclAJrP9bIUFkfVaIN82wqe2PlJgA+ySPACkqmIn/n0lfB1IdrESDiycBvRbhpdewEneC/h0YeDSsDCqBU1fHRUREuFP1cC3RAktwh7pQ0DOFm82FZHc/AX4ULoHJxxUMg/o54tuPDOxP94O+HxJkDlYHNcKpLZRJuBxZXvZAvCtcWIT2DvzO+5pjh/PYjwvDwP+PdObgIMrVYDiaVoyooO4oKrKYD3skNgNpLp6lyWG3sruRAeAFWoGUuTBszqOKRogNIMAM0wpiswVBViHemWNATpcyyh18AFRbAcDqYtYGt34CFe8I1Z03ggDEFqNRehJEFsi+XubcDurQwEgYIg0D9fhx1VOecek93jI86SAsmGMa6oF+TU3xlE11RVAGsZwym8qVelVAWPDCaRXWA0lz9/3AlVrwkiJawZYXRVC4r75hDyq9qNqvi+JhlRp9DCmPZrsr1vaCMoXrzeqjqSRTRNFY8EMcDmWYjCFnDR28Z0o31CGqp3xduSMShkEcqLJuGDiBJw0Uzk+lDyl6pMzBejH007EavN3NwKuoeRpVZxR+wWmW7Xh4QItT6suVmwzu89e18dN5ClV5R0J5yFxlH8g5CnVL2dhXHDAGIHsJSlPqr45BKoUfA80iQRVLKJ8jEFeFIOq6ic7WBbuz5hJhGlNyV2lvgTGsvy+v46F+hfMQIMAzlWgZq6UhTufU+jqp6vp1wsrWWh4LV5/r0/ppmdEnaHiZIRH2hjq5ELEx7rAYgb3H2FIQPEcNg6OIZngKo0WO0Od+tFL7qwbY3XGT5MCYKQgQ/Wt54SYuqvsT75DzQJ/kqab3hBh/qLj73mO8rXhRoCq2fwDaCkLpidrF/5jtOpYlifn/Uwe8NErq0xV+5McLb4MyLkzWxhAqjbL+FY+aPiyZv0QNagulm+16R225TEOoF5UVd6W2PyIW3trgoEosIY2whinM5/aDgu5f/9P3tvL8B9Ei/pF76GQOQAAAABJRU5ErkJggg=="},
+      {"key":"longDescription","value": "In-memory data structure store, used as database, cache and message broker."},
+      {"key":"providerDisplayName","value": "Ferran Rodenas"},
+      {"key":"documentationUrl","value": "https://github.com/frodenas/docker-redis/blob/master/README.md"},
+      {"key":"supportUrl","value": "https://github.com/frodenas/docker-redis"}
+    ],
+    "bindable": true,
+    "tags": [
+      "redis",
+      "store",
+      "in-memory"
+    ],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated Redis 3.0 server. Resources used: 1 compute node, 512 MB RAM and 5 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

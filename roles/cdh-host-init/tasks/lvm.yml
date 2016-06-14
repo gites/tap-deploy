@@ -1,0 +1,69 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Register local device name
+  set_fact:
+    device_name: "lvm_{{ (item | split('/'))[-1] }}"
+
+- name: Create PV on device {{ item }} for {{ device_name }}
+  lvg:
+    vg: "{{ device_name }}"
+    pvs: "{{ item }}"
+
+- name: Create LV
+  lvol:
+    vg: "{{ device_name }}"
+    lv: data
+    size: 100%VG
+
+- name: Create ext4 fs on lv {{ device_name }}
+  filesystem:
+    fstype: ext4
+    dev: "/dev/{{ device_name }}/data"
+
+- name: Create mountpoint /data/{{ device_name }}
+  file:
+    path: "/data/{{ device_name }}"
+    state: directory
+
+- name: Mount filesystem
+  mount:
+    name: "/data/{{ device_name }}"
+    src: "/dev/{{ device_name }}/data"
+    fstype: ext4 
+    state: mounted
+
+- name: Check if data directory exists
+  stat:
+    path: /data/main
+  register: data_directory
+
+- name: Fail when this is not a directory or symlink
+  fail:
+    msg: "/data/main is not directory or symlink"
+  when: 
+    - data_directory.stat.isdir is defined and data_directory.stat.isdir == False
+    - data_directory.stat.islnk is defined and data_directory.stat.islnk == False
+
+- name: Link storage dir to data if it is first device
+  file:
+    src: "/data/{{ device_name }}"
+    dest: /data/main
+    state: link
+  when: data_directory.stat.exists == False
+  

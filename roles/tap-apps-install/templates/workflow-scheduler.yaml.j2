@@ -1,0 +1,167 @@
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    tap_app_type: CORE
+  name: workflow-scheduler
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: workflow-scheduler
+    spec:
+      volumes:
+      - name: cacert-volume
+        secret:
+          secretName: cdh-ca
+          items:
+          - key: cacerts
+            path: "{{ trusted_store_file }}"
+      - name: kerberos-config-volume
+        configMap:
+          name: kerberos-config
+      - name: kerberos-cacert-volume
+        secret:
+          secretName: kerberos-cacert
+      - name: hadoop-config-volume
+        configMap:
+          name: hadoop-conf
+      - name: yarn-config-volume
+        configMap:
+          name: yarn-conf
+      containers:
+      - name: workflow-scheduler
+        image: "{{ repository_uri }}/workflow-scheduler:{{ tap_version }}"
+        resources:
+          limits:
+            memory: "{{ workflow_sheduler_memory_limit }}"
+          requests:
+            memory: "{{ workflow_sheduler_memory_limit }}"
+        volumeMounts:
+        - mountPath: "{{ trusted_store_path }}"
+          name: cacert-volume
+        - mountPath: "/etc/krb5.conf"
+          name: kerberos-config-volume
+          subPath: krb5.conf
+          readOnly: true
+        - mountPath: "/etc/krb5.cacert.pem"
+          name: kerberos-cacert-volume
+          subPath: krb5.cacert.pem
+          readOnly: true
+        - mountPath: "/etc/hadoop"
+          name: hadoop-config-volume
+          readOnly: true
+        - mountPath: "/etc/yarn"
+          name: yarn-config-volume
+          readOnly: true
+        ports:
+        - containerPort: 80
+        env:
+        - name: JAVA_OPTS
+          value: '-Xss228k -Xms512m -Xmx512m -XX:MetaspaceSize=128m'
+        - name: KRB_KDC
+          valueFrom:
+            configMapKeyRef:
+              name: kerberos-config
+              key: krb.kdc
+        - name: KRB_REALM
+          valueFrom:
+            configMapKeyRef:
+              name: kerberos-config
+              key: krb.realm
+        - name: HADOOP_CONF_DIR
+          value: '/etc/hadoop/'
+        - name: YARN_CONF_DIR
+          value: '/etc/yarn'
+        - name: SERVER_PORT
+          value: "8080"
+        - name: SPRING_OAUTH2_RESOURCE_ID
+          value: 'tap'
+        - name: SPRING_PROFILES_ACTIVE
+          value: 'cloud'
+        - name: POSTGRES_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: workflowscheduler-postgres
+              key: host
+        - name: POSTGRES_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: workflowscheduler-postgres
+              key: port
+        - name: POSTGRES_DBNAME
+          valueFrom:
+            configMapKeyRef:
+              name: workflowscheduler-postgres
+              key: dbname
+        - name: POSTGRES_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: workflowscheduler-postgres
+              key: user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: workflowscheduler-postgres
+              key: password
+        - name: OOZIE_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: oozie.server
+        - name: SQOOP_METASTORE
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: sqoop.metastore
+        - name: SQOOP_DATABASE_POSTGRESQL
+          value: 'true'
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_TOKENKEY
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: token-key
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_UAAURI
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: uaa-uri
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_CLIENTID
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: client-id
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_CLIENTSECRET
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: client-secret
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_TOKENURI
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: token-uri
+        - name: CLOUDERA_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.password
+        - name: CLOUDERA_USER
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.user
+        - name: CLOUDERA_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.manager.url
+        - name: CLOUDERA_TRUSTSTORE
+          value: "{{ trusted_store_path }}{{ trusted_store_file }}"
+        - name: CLOUDERA_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cdh-ca
+              key: password

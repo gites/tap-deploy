@@ -1,0 +1,122 @@
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    tap_app_type: CORE
+  name: platform-snapshot
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: platform-snapshot
+    spec:
+      volumes:
+      - name: cacert-volume
+        secret:
+          secretName: cdh-ca
+          items:
+          - key: cacerts
+            path: "{{ trusted_store_file }}"
+      containers:
+      - name: platform-snapshot
+        image: "{{ repository_uri }}/platform-snapshot:{{ tap_version }}"
+        resources:
+          limits:
+            memory: "{{ platform_snaphot_memory_limit }}"
+          requests:
+            memory: "{{ platform_snaphot_memory_limit }}"
+        volumeMounts:
+        - mountPath: "{{ trusted_store_path }}"
+          name: cacert-volume
+        ports:
+        - containerPort: 80
+        env:
+        - name: JAVA_OPTS
+          value: '-Xss228k -Xms512m -Xmx512m -XX:MetaspaceSize=128m'
+        - name: SERVER_PORT
+          value: "8080"
+        - name: SPRING_OAUTH2_RESOURCE_ID
+          value: 'tap'
+        - name: SPRING_PROFILES_ACTIVE
+          value: 'cloud'
+        - name: DB_HOSTNAME
+          valueFrom:
+            configMapKeyRef:
+              name: platformsnapshot-postgres
+              key: host
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: platformsnapshot-postgres
+              key: port
+        - name: DB_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: platformsnapshot-postgres
+              key: dbname
+        - name: DB_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: platformsnapshot-postgres
+              key: user
+        - name: DB_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: platformsnapshot-postgres
+              key: password
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_TOKENKEY
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: token-key
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_UAAURI
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: uaa-uri
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_CLIENTID
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: client-id
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_CLIENTSECRET
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: client-secret
+        - name: VCAP_SERVICES_SSO_CREDENTIALS_TOKENURI
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: token-uri
+        - name: API_SERVICE
+          value: "{{ external_protocol }}://api-service/api"
+        - name: CLOUDERA_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.manager.host
+        - name: CLOUDERA_PASSWORD
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.password
+        - name: CLOUDERA_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.port
+        - name: CLOUDERA_USER
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: cloudera.user
+        - name: CLOUDERA_TRUSTSTORE
+          value: "{{ trusted_store_path }}{{ trusted_store_file }}"
+        - name: CLOUDERA_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cdh-ca
+              key: password

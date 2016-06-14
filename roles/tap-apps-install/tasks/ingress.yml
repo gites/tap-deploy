@@ -1,0 +1,205 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+- name: Set ssl crt and key local facts
+  set_fact:
+    platform_ssl_cert_base64_local: "{{ platform_ssl_cert_base64 | default('') }}"
+    platform_ssl_cert_base64_trusted: "{{ platform_ssl_cert_base64 | default('') }}"
+    platform_ssl_private_base64_local: "{{ platform_ssl_private_base64 | default('') }}"
+
+- block:
+
+    - name: Fetch CA root certificate from tap-ca
+      uri:
+        url: "http://{{ ca_service_clusterip }}/api/v1/ca"
+        method: GET
+        user: "{{ ca_service.user }}"
+        password: "{{ hostvars[groups['k8s-master'][0]].passwords.ca_service.pass }}"
+        force_basic_auth: yes
+        status_code: 200
+        return_content: yes
+        timeout: 60
+      register: cacert
+
+    - name: Set CA root certificate fact
+      set_fact:
+        platform_ssl_cert_base64_trusted: "{{ cacert.json['ca_cert'] | b64encode}}"
+
+    - name: Fetch platform wildcard certificate and key from tap-ca
+      uri:
+        url: "http://{{ ca_service_clusterip }}/api/v1/certkey/*.{{ tap_domain_name }}"
+        method: GET
+        user: "{{ ca_service.user }}"
+        password: "{{ hostvars[groups['k8s-master'][0]].passwords.ca_service.pass }}"
+        force_basic_auth: yes
+        status_code: 200
+        return_content: yes
+        timeout: 60
+      register: certkey
+
+    - name: Set ssl crt and key facts
+      set_fact:
+        platform_ssl_cert_base64_local: "{{ certkey.json['cert'] | b64encode}}"
+        platform_ssl_private_base64_local: "{{ certkey.json['key'] | b64encode}}"
+
+  when: platform_ssl_cert_base64 is not defined or platform_ssl_cert_base64 == None or platform_ssl_cert_base64 | trim == '' or
+        platform_ssl_private_base64 is not defined or platform_ssl_private_base64 == None or platform_ssl_private_base64 | trim == ''
+
+- name: Add public certificate as trusted cert for all hosts
+  copy:
+    content: "{{ platform_ssl_cert_base64_trusted | b64decode }}"
+    dest: "/etc/pki/ca-trust/source/anchors/tap-external-ssl-ca.pem"
+    mode: 0644
+    owner: root
+  delegate_to: "{{ item }}"
+  with_flattened:
+    - "{{ groups['jumpbox'] }}"
+    - "{{ groups['ca-client'] }}"
+
+- name: Refresh ca authority
+  shell: update-ca-trust
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_flattened:
+    - "{{ groups['jumpbox'] }}"
+    - "{{ groups['ca-client'] }}"
+
+- name: Create ingress ConfigMap mounted to /etc/nginx/conf.d/hue.conf file
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data: "{{ lookup('template', 'apps/ingress.configmap.hue.j2') }}"
+    state: present
+
+- name: Create ingress Secret mounted to files in /etc/nginx/ssl/
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: Secret
+      apiVersion: v1
+      metadata:
+        name: nginx-ingress-ssl
+      data:
+        ssl.crt: "{{ platform_ssl_cert_base64_local }}"
+        ssl.key: "{{ platform_ssl_private_base64_local }}"
+    state: present
+
+- name: Create INGRESS deployment instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      apiVersion: "extensions/v1beta1"
+      kind: "Deployment"
+      metadata:
+        name: "nginx-ingress"
+        labels:
+          tap_app_type: CORE
+      spec:
+        replicas: 1
+        template:
+          metadata:
+            labels:
+              app: nginx-ingress
+          spec:
+            containers:
+              - name: "nginx-ingress"
+                image: "{{ repository_uri }}/tap-nginx-ingress:{{ tap_version }}"
+                resources:
+                  limits:
+                    memory: "{{ ingress_memory_limit }}"
+                  requests:
+                    memory: "{{ ingress_memory_limit }}"
+                ports:
+                  - containerPort: 80
+                    protocol: "TCP"
+                livenessProbe:
+                  initialDelaySeconds: 15
+                  httpGet:
+                    path: /healthz
+                    port: 5555
+                readinessProbe:
+                  initialDelaySeconds: 5
+                  exec:
+                    command:
+                    - grep
+                    - listen
+                    - nginx.conf
+                volumeMounts:
+                  - name: nginx-confd-volume
+                    mountPath: /etc/nginx/conf.d
+                  - name: nginx-ssl-volume
+                    mountPath: /etc/nginx/ssl
+                  - name: nginx-ingress-ca-pem-volume
+                    mountPath: /etc/ssl/certs/ca.pem
+                    subPath: ca.pem
+                    readOnly: true
+                  - name: nginx-ingress-ca-certificates-crt-volume
+                    mountPath: /etc/ssl/certs/ca-certificates.crt
+                    subPath: ca-certificates.crt
+                    readOnly: true
+                  - name: nginx-ingress-hashed-ca-volume
+                    mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+                    subPath: "{{ ca_cert.json['hash'] }}.0"
+                    readOnly: true
+            volumes:
+              - name: nginx-confd-volume
+                configMap:
+                  name: nginx-ingress
+              - name: nginx-ssl-volume
+                secret:
+                  secretName: nginx-ingress-ssl
+              - name: nginx-ingress-ca-pem-volume
+                secret:
+                  secretName: platform-ca-root-cert
+              - name: nginx-ingress-ca-certificates-crt-volume
+                secret:
+                  secretName: platform-ca-roots-bundle
+              - name: nginx-ingress-hashed-ca-volume
+                secret:
+                  secretName: platform-ca-root-cert-hashed
+
+    state: present
+
+- name: Create ingress service
+  ignore_errors: yes
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Service"
+      apiVersion: "v1"
+      metadata:
+        name: "nginx-ingress"
+        labels:
+          app: "nginx-ingress"
+      spec:
+        type: "NodePort"
+        selector:
+          app: "nginx-ingress"
+        ports:
+          - nodePort: 30100
+            port: 80
+            protocol: "TCP"
+            name: "rest"
+          - nodePort: 30101
+            port: 443
+            protocol: "TCP"
+            name: "restssl"
+    state: present
+

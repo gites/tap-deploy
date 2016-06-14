@@ -1,0 +1,378 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+- name: CONTAINER-BROKER Create a Secret instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Secret"
+      apiVersion: "v1"
+      metadata:
+        name: "container-broker"
+      data:
+        ceph-monitors: "{{ lookup('template', 'apps/container-broker.mons.j2') | json_to_str | b64encode }}"
+
+- name: CONTAINER-BROKER Get CertKey
+  uri:
+    url: "http://{{ ca_service_clusterip }}/api/v1/certkey/container-broker"
+    method: GET
+    user: "{{ ca_service.user }}"
+    password: "{{ hostvars[groups['k8s-master'][0]].passwords.ca_service.pass }}"
+    force_basic_auth: yes
+    status_code: 200
+    return_content: yes
+    timeout: 60
+  register: certkey
+
+- name: CONTAINER-BROKER create cert and key secret for nginx
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Secret"
+      metadata:
+        name: "container-broker-certkey"
+      data:
+        ssl.crt: "{{ certkey.json['cert'] | b64encode }}"
+        ssl.key: "{{ certkey.json['key'] | b64encode }}"
+
+- name: CONTAINER-BROKER Create a ConfigMap instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "ConfigMap"
+      apiVersion: "v1"
+      metadata:
+        name: "container-broker"
+        labels:
+          app: "container-broker"
+      data:
+        port: "80"
+        ssl-port: "443"
+        user: "admin"
+        pass: "password"
+        broker-log-level: "INFO"
+        check-job-interval-sec: "10"
+        k8s-api-address: ""
+        k8s-ssl-active: "true"
+        host: "container-broker"
+        memory-limit: 1Gi
+        java-xmx: "768m"
+        java-xms: "16m"
+        java-metaspace: "128m"
+        ceph-broker-user: "{{ ceph_broker_user }}"
+        ceph-broker-pass: "{{ hostvars[groups['k8s-master'][0]].passwords.k8s.ceph_broker_pass }}"
+        ceph-broker-host: "{{ ceph_broker_host }}"
+        ceph-broker-port: "{{ ceph_broker_internal_port }}"
+        ceph-user: "admin"
+        ceph-pool: "rbd"
+        ceph-fs-type: "ext4"
+        ceph-image-size-mb: "200"
+        processors-tries: "24"
+
+- name: CONTAINER-BROKER Create a deployment instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Deployment"
+      apiVersion: "extensions/v1beta1"
+      metadata:
+        name: container-broker
+        labels:
+          tap_app_type: CORE
+      spec:
+        replicas: 1
+        template:
+          metadata:
+            labels:
+              app: container-broker
+          spec:
+            volumes:
+              - name: "container-broker-ca-pem-volume"
+                secret:
+                  secretName: "platform-ca-root-cert"
+              - name: "container-broker-ca-certificates-crt-volume"
+                secret:
+                  secretName: "platform-ca-roots-bundle"
+              - name: "container-broker-hashed-ca-volume"
+                secret:
+                  secretName: "platform-ca-root-cert-hashed"
+              - name: "container-broker-certkey-volume"
+                secret:
+                  secretName: "container-broker-certkey"
+            containers:
+              - name: "nginx-ssl"
+                image: "{{ repository_uri }}/tap-nginx-dyn-stream:{{ tap_version }}"
+                volumeMounts:
+                  - name: "container-broker-certkey-volume"
+                    mountPath: "/etc/nginx/ssl"
+                ports:
+                  - containerPort: 443
+                    protocol: "TCP"
+                imagePullPolicy: "Always"
+              -
+                name: "container-broker"
+                image: "{{ repository_uri }}/tap-container-broker:{{ tap_version }}"
+                volumeMounts:
+                  - name: "container-broker-ca-pem-volume"
+                    mountPath: "/etc/ssl/certs/ca.pem"
+                    subPath: ca.pem
+                    readOnly: true
+                  - name: "container-broker-ca-certificates-crt-volume"
+                    mountPath: "/etc/ssl/certs/ca-certificates.crt"
+                    subPath: ca-certificates.crt
+                    readOnly: true
+                  - name: "container-broker-hashed-ca-volume"
+                    mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+                    subPath: "{{ ca_cert.json['hash'] }}.0"
+                    readOnly: true
+                ports:
+                  - containerPort: 80
+                    protocol: "TCP"
+                resources:
+                  limits:
+                    memory: "{{ container_broker_memory_limit }}"
+                  requests:
+                    memory: "{{ container_broker_memory_limit }}"
+                env:
+                  - name: "DOMAIN"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "platform"
+                        key: "domain"
+                  - name: "K8S_API_ADDRESS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "k8s-api-address"
+                  - name: "KUBE_SSL_ACTIVE"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "k8s-ssl-active"
+                  - name: "CONTAINER_BROKER_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "port"
+                  - name: "CONTAINER_BROKER_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "user"
+                  - name: "CONTAINER_BROKER_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "pass"
+                  - name: "MEMORY_LIMIT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "memory-limit"
+                  - name: "JAVA_XMX"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "java-xmx"
+                  - name: "JAVA_XMS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "java-xms"
+                  - name: "JAVA_METASPACE"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "java-metaspace"
+                  - name: "TEMPLATE_REPOSITORY_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "host"
+                  - name: "TEMPLATE_REPOSITORY_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "ssl-port"
+                  - name: "TEMPLATE_REPOSITORY_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "user"
+                  - name: "TEMPLATE_REPOSITORY_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "pass"
+                  - name: "CATALOG_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "host"
+                  - name: "CATALOG_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "ssl-port"
+                  - name: "CATALOG_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "user"
+                  - name: "CATALOG_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "pass"
+                  - name: "BROKER_LOG_LEVEL"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "broker-log-level"
+                  - name: "CHECK_JOB_INTERVAL_SEC"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "check-job-interval-sec"
+                  - name: "QUEUE_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "queue"
+                        key: "host"
+                  - name: "QUEUE_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "queue"
+                        key: "port"
+                  - name: "QUEUE_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: queue
+                        key: user
+                  - name: "QUEUE_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: queue
+                        key: password
+                  - name: "CEPH_BROKER_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "ceph-broker-user"
+                  - name: "CEPH_BROKER_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "ceph-broker-pass"
+                  - name: "CEPH_BROKER_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "ceph-broker-host"
+                  - name: "CEPH_BROKER_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "ceph-broker-port"
+                  - name: "CEPH_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "ceph-user"
+                  - name: "CEPH_SECRET_NAME"
+                    value: ceph-secret
+                  - name: "CEPH_MONITORS"
+                    valueFrom:
+                      secretKeyRef:
+                        name: "container-broker"
+                        key: "ceph-monitors"
+                  - name: "CEPH_POOL"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "ceph-pool"
+                  - name: "CEPH_FS_TYPE"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "ceph-fs-type"
+                  - name: "CEPH_IMAGE_SIZE_MB"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "ceph-image-size-mb"
+                  - name: "CA_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "ca"
+                        key: "host"
+                  - name: "CA_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "ca"
+                        key: "port"
+                  - name: "CA_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "ca"
+                        key: "user"
+                  - name: "CA_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "ca"
+                        key: "pass"
+                  - name: "PROCESSORS_TRIES"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "processors-tries"
+                imagePullPolicy: "Always"
+            restartPolicy: "Always"
+            dnsPolicy: "ClusterFirst"
+    state: present
+
+- name: CONTAINER-BROKER Create a service
+  ignore_errors: yes
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Service"
+      apiVersion: "v1"
+      metadata:
+        name: "container-broker"
+        labels:
+          app: "container-broker"
+      spec:
+        type: "ClusterIP"
+        selector:
+          app: "container-broker"
+        ports:
+          - port: 80
+            protocol: "TCP"
+            name: "rest"
+          - port: 443
+            protocol: "TCP"
+            name: "rest-ssl"
+    state: present
+
+
+

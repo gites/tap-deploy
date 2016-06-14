@@ -1,0 +1,36 @@
+apiVersion: extensions/v1beta1
+kind: Job
+metadata:
+  name: "transfer"
+spec:
+  template:
+    metadata:
+      name: transfer
+      labels:
+        backup: transfer
+    spec:
+      containers:
+        - name: transfer
+          image: "{{ repository_uri }}/nginx-ssl:1.0.1"
+          command: ["ls", "-l", "/backup/"]
+          volumeMounts:
+{% for vol in backup_vol_list %}
+            - mountPath: /backup/{{ vol }}
+              name: {{ vol }}
+{% endfor %}
+          imagePullPolicy: "Always"
+      volumes:
+{% for vol in backup_vol_list %}
+        - name: {{ vol }}
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: {{ vol }}
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: true
+{% endfor %}
+
+      restartPolicy: "Never"

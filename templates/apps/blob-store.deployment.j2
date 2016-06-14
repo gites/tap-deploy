@@ -1,0 +1,135 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: blob-store
+  labels:
+    tap_app_type: CORE
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: blob-store
+    spec:
+      containers:
+        - name: blob-store
+          image: "{{ repository_uri }}/tap-blob-store:{{ tap_version }}"
+          volumeMounts:
+            - name: "blob-store-ca-pem-volume"
+              mountPath: "/etc/ssl/certs/ca.pem"
+              subPath: ca.pem
+              readOnly: true
+            - name: "blob-store-ca-certificates-crt-volume"
+              mountPath: "/etc/ssl/certs/ca-certificates.crt"
+              subPath: ca-certificates.crt
+              readOnly: true
+            - name: "blob-store-hashed-ca-volume"
+              mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+              subPath: "{{ ca_cert.json['hash'] }}.0"
+              readOnly: true
+          imagePullPolicy: "Always"
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          resources:
+            limits:
+              memory: "{{ blob_store_memory_limit }}"
+            requests:
+              memory: "{{ blob_store_memory_limit }}"
+          env:
+            - name: MINIO_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: minio
+                  key: hostname
+            - name: MINIO_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: minio
+                  key: port
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: access-key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: secret-key
+            - name: BLOB_STORE_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: blob-store
+                  key: user
+            - name: BLOB_STORE_PASS
+              valueFrom:
+                configMapKeyRef:
+                  name: blob-store
+                  key: pass
+            - name: BROKER_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: blob-store
+                  key: broker-log-level
+        - name: minio
+          image: "{{ repository_uri }}/tap-blob-store/minio:{{ tap_version }}"
+          ports:
+            - containerPort: 9000
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /opt/app/store
+              name: blob-store
+          env:
+            - name: MINIO_STORAGE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: minio
+                  key: storage-path
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: access-key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: secret-key
+            - name: BROKER_LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: minio
+                  key: broker-log-level
+        - name: "nginx-ssl"
+          image: "{{ repository_uri }}/tap-nginx-dyn-stream:{{ tap_version }}"
+          volumeMounts:
+            - name: "blob-store-certkey-volume"
+              mountPath: "/etc/nginx/ssl"
+          ports:
+            - containerPort: 443
+              protocol: "TCP"
+      imagePullPolicy: "Always"
+      volumes:
+        - name: blob-store
+          rbd:
+            monitors: [{% for item in groups["mons"]%}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]
+            pool: rbd
+            image: blob-store
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+        - name: "blob-store-ca-pem-volume"
+          secret:
+            secretName: "platform-ca-root-cert"
+        - name: "blob-store-ca-certificates-crt-volume"
+          secret:
+            secretName: "platform-ca-roots-bundle"
+        - name: "blob-store-hashed-ca-volume"
+          secret:
+            secretName: "platform-ca-root-cert-hashed"
+        - name: "blob-store-certkey-volume"
+          secret:
+            secretName: "blob-store-nginx-certkey"

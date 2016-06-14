@@ -1,0 +1,88 @@
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  name: "model-catalog"
+  labels:
+    tap_app_type: CORE
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: model-catalog
+    spec:
+      containers:
+        - name: "model-catalog"
+          image: "{{ repository_uri }}/model-catalog:{{ tap_version }}"
+          ports:
+            - containerPort: "80"
+              protocol: "TCP"
+          resources:
+            limits:
+              memory: "{{ model_catalog_memory_limit }}"
+            requests:
+              memory: "{{ model_catalog_memory_limit }}"
+          env:
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: "model-catalog"
+                  key: "port"
+            - name: SSO_TOKENKEY
+              valueFrom:
+                configMapKeyRef:
+                  name: sso
+                  key: token-key
+            - name: MONGO_HOST
+              value: localhost
+            - name: MONGO_PORT
+              value: "27017"
+            - name: MONGO_DBNAME
+              value: "models"
+            - name: MONGO_USERNAME
+              value: ""
+            - name: MONGO_PASSWORD
+              value: ""
+            - name: TEST
+              value: "1"
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+          - mountPath: /data/artifacts
+            name: model-catalog-artifacts
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 80
+            initialDelaySeconds: 60
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 5
+        - name: mongo
+          image: "{{ repository_uri }}/mongo:3.3.12"
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+          - mountPath: /data/db
+            name: model-catalog-mongo
+      volumes:
+      - name: model-catalog-mongo
+        rbd:
+          monitors: [{% for item in groups["mons"]%}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]
+          pool: rbd
+          image: model-catalog-mongo
+          user: admin
+          secretRef:
+            name: ceph-secret
+          fsType: ext4
+          readOnly: false
+      - name: model-catalog-artifacts
+        rbd:
+          monitors: [{% for item in groups["mons"]%}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]
+          pool: rbd
+          image: model-catalog-artifacts
+          user: admin
+          secretRef:
+            name: ceph-secret
+          fsType: ext4
+          readOnly: false
+      restartPolicy: "Always"
+      dnsPolicy: "ClusterFirst"

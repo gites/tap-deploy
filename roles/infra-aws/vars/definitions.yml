@@ -1,0 +1,54 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+vpc_name: { "Name":"{{ env_name }}-vpc" }
+
+jumpbox_subnet_name: { "Name":"jump-subnet" }
+k8s_master_subnet_name: { "Name":"k8s-master-subnet" }
+k8s_worker_subnet_name: { "Name":"k8s-worker-subnet" }
+cdh_subnet_name: { "Name":"cdh-subnet" }
+ceph_subnet_name: { "Name":"ceph-subnet" }
+
+jumpbox_route_table_name: { "Name": "jump-route-table" }
+k8s_node_route_table_name: { "Name":"k8s-node-route-table" }
+cdh_route_table_name: { "Name":"cdh-node-route-table" }
+ceph_route_table_name: { "Name":"ceph-route-table" }
+
+nat_name: { "Name":"nat-instance" }
+
+mapping:
+  - name: jump
+    subnet: "{{ ec2_subnet_jump.subnet  }}"
+    security_group: "{{ ec2_sg_jump }}"
+    route_table: "{{ ec2_route_table_jump.route_table }}"
+  - name: k8s-master
+    subnet: "{{ ec2_subnet_k8s_master.subnet  }}"
+    security_group: "{{ ec2_sg_k8s_master }}"
+    route_table: "{{ ec2_route_table_k8s_node.route_table }}"
+  - name: k8s-worker
+    subnet: "{{ ec2_subnet_k8s_worker.subnet  }}"
+    security_group: "{{ ec2_sg_k8s_worker }}"
+    route_table: "{{ ec2_route_table_k8s_node.route_table }}"
+  - name: cdh
+    subnet: "{{ ec2_subnet_cdh.subnet  }}"
+    security_group: "{{ ec2_sg_cdh }}"
+    route_table: "{{ ec2_route_table_cdh.route_table }}"
+  - name: ceph
+    subnet: "{{ ec2_subnet_ceph.subnet }}"
+    security_group: "{{ ec2_sg_ceph }}"
+    route_table: "{{ ec2_route_table_ceph_node.route_table }}" 

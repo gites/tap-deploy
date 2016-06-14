@@ -1,0 +1,44 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Setup CDH agents.
+#
+# Reconfigure Cloudera Manager agent.
+#
+###
+---
+
+- set_fact:
+    manager_hostname: "{{ hostvars[groups['cdh-manager'][0]].inventory_hostname }}"
+
+- name: install cloudera packages
+  yum: pkg={{ item }} state=latest
+  with_items:
+    - cloudera-manager-agent
+
+- name: replace cloudera-scm-agent config
+  replace: dest=/etc/cloudera-scm-agent/config.ini regexp='(server_host)=localhost' replace=\\1={{ manager_hostname }}
+
+- name: add node name to cloudera-scm-agent config
+  lineinfile: dest=/etc/cloudera-scm-agent/config.ini insertbefore='listening_hostname' line="listening_hostname={{ inventory_hostname }}" state=present
+
+- name: wait for manager port 7180 to become accessible
+  wait_for: host={{ manager_hostname }} port=7180
+
+- name: start cloudera-scm-agent
+  service: name=cloudera-scm-agent state=started enabled=yes

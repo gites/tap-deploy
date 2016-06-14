@@ -1,0 +1,61 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Deploy sqoop client gateways
+  cdh:
+    action: deploy_service_worker_nodes
+    password: "{{ cdh_admin_password }}"
+    service: sqoop-client
+    host: '{{ item }}'
+  with_items: "{{ groups['cdh-all'] }}"
+
+- name: Set shared configuration for sqoop client and metastore
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role 
+    service: sqoop-client
+    role: GATEWAY 
+    name: 'sqoop-conf/sqoop-site.xml_client_config_safety_valve' 
+    value: "<property><name>sqoop.metastore.server.port</name><value>16000</value></property><property><name>sqoop.metastore.client.enable.autoconnect</name><value>false</value></property><property><name>sqoop.metastore.client.autoconnect.url</name><value>jdbc:hsqldb:hsql://{{ hostvars[groups['cdh-manager'][0]]['ansible_host'] }}:16000/sqoop</value></property><property><name>sqoop.metastore.client.autoconnect.username</name><value>sqoopmetastoreuser</value></property><property><name>sqoop.metastore.client.autoconnect.password</name><value>sqoopmetastorepassword</value></property><property><name>sqoop.metastore.client.record.password</name><value>true</value></property><property><name>sqoop.metastore.server.location</name><value>/var/lib/sqoop/shared-metastore.db</value></property>"
+
+- name: Deploy sqoop client configuration
+  cdh: 
+    action: deploy_configuration
+    password: "{{ cdh_admin_password }}"
+    service: sqoop-client
+
+- name: Deploy sqoop-metastore service
+  cdh: 
+    action: deploy_service
+    password: "{{ cdh_admin_password }}"
+    name: sqoop-metastore
+
+- name: Deploy sqoop-metastore base component
+  cdh: 
+    action: deploy_base_roles
+    password: "{{ cdh_admin_password }}"
+    service: sqoop-metastore 
+    host: "{{ groups['cdh-manager'][0] }}"
+
+- name: Start sqoop-metastore service
+  cdh: 
+    action: service
+    password: "{{ cdh_admin_password }}"
+    service: sqoop-metastore
+    state: started

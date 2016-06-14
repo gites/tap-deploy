@@ -1,0 +1,104 @@
+{% for n in range(1,etcd_catalog_replicas|int+1) %}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "etcd-catalog{{ n }}"
+  labels:
+    id: "etcd-catalog{{ n }}"
+spec:
+  selector:
+    id: "etcd-catalog{{ n }}"
+  type: "NodePort"
+  ports:
+  - port: {{ etcd_client_port }}
+    protocol: "TCP"
+    name: "transport"
+  - port: {{ etcd_peer_port }}
+    protocol: "TCP"
+    name: "peer"
+
+---
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  name: "etcd-catalog{{ n }}"
+  labels:
+    replica: "etcd-catalog{{ n }}"
+    id: "etcd-catalog{{ n }}"
+    tap_app_type: CORE
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      replica: "etcd-catalog{{ n }}"
+  template:
+    metadata:
+      labels:
+        replica: "etcd-catalog{{ n }}"
+        id: "etcd-catalog{{ n }}"
+        app: etcd-catalog
+    spec:
+      containers:
+        - name: "etcd"
+          image: "{{ repository_uri }}/coreos/etcd:v3.0.10"
+          env:
+            - name: "ETCD_NAME"
+              value: "etcd-catalog{{ n }}"
+            - name: "ETCD_LISTEN_CLIENT_URLS"
+              value: "https://0.0.0.0:{{ etcd_client_port }}"
+            - name: "ETCD_ADVERTISE_CLIENT_URLS"
+              value: "https://0.0.0.0:{{ etcd_client_port }}"
+            - name: ETCD_CERT_FILE
+              value: "/etc/etcd/ssl/ssl.crt"
+            - name: ETCD_KEY_FILE
+              value: "/etc/etcd/ssl/ssl.key"
+            - name: ETCD_PEER_CERT_FILE
+              value: "/etc/etcd/ssl/ssl.crt"
+            - name: ETCD_PEER_KEY_FILE
+              value: "/etc/etcd/ssl/ssl.key"
+            - name: ETCD_PEER_CA_FILE
+              value: "/etc/etcd/ca/ca.pem"
+            - name: ETCD_INITIAL_CLUSTER_TOKEN
+              value: "etcd-catalog-cl"
+            - name: ETCD_INITIAL_CLUSTER_STATE
+              value: "new"
+            - name: ETCD_LISTEN_PEER_URLS
+              value: "https://0.0.0.0:{{ etcd_peer_port }}"
+            - name: ETCD_INITIAL_ADVERTISE_PEER_URLS
+              value: "https://etcd-catalog{{ n }}:{{ etcd_peer_port }}"
+            - name: ETCD_INITIAL_CLUSTER
+              value: "{% for n in range(1,etcd_catalog_replicas|int+1) %}etcd-catalog{{ n }}=https://etcd-catalog{{ n }}:{{ etcd_peer_port }}{% if not loop.last %},{% endif %}{% endfor %}"
+          imagePullPolicy: "Always"
+          ports:
+            - containerPort: {{ etcd_client_port }}
+              protocol: "TCP"
+            - containerPort: {{ etcd_peer_port }}
+              protocol: "TCP"
+          volumeMounts:
+            - mountPath: /etcd-catalog{{ n }}.etcd
+              name: etcd-catalog-persistent-storage{{ n }}
+            - name: "etcd-catalog-certkey-volume"
+              mountPath: "/etc/etcd/ssl"
+            - name: "platform-ca-root-cert-volume"
+              mountPath: "/etc/etcd/ca"
+      volumes:
+        - name: etcd-catalog-persistent-storage{{ n }}
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: etcdcatalog{{ n }}
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+        - name: "etcd-catalog-certkey-volume"
+          secret:
+            secretName: "etcd-catalog-certkey{{ n }}"
+        - name: "platform-ca-root-cert-volume"
+          secret:
+            secretName: "platform-ca-root-cert"
+      restartPolicy: "Always"
+      dnsPolicy: "ClusterFirst"
+{% endfor %}

@@ -1,0 +1,50 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+uaa_cipher_key:
+uaa_hash_salt:
+uaa_admin_secret:
+uaa_consolesvc_secret:
+uaa_login_secret:
+uaa_console_secret:
+uaa_hue_secret:
+uaa_kibana_secret:
+uaa_grafana_secret:
+
+user_management_cipher_key:
+user_management_hash_salt:
+
+key_counter_user:
+key_counter_pass:
+
+h2o_se_publisher_user:
+h2o_se_publisher_pass:
+
+das_cipher_key:
+
+grafana_admin_password:
+
+# Proxy settings to be used by applications. It should be left empty if the intention
+# is to not use any proxy. Otherwise, RFC 1808 format should be used for http_proxy and https_proxy
+# and 'linux-like' format convention for no_proxy, i.e.: ".example.com|localhost"
+proxy_for_apps:
+  http_proxy:
+  https_proxy:
+  no_proxy:
+
+rbd_monitors: '[{% for item in groups["mons"]%}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]'

@@ -1,0 +1,42 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: init kerberos for hdfs
+  kinit: usr='{{ item.usr }}' pass='{{ item.pass }}'
+  delegate_to: '{{ groups["cdh-master"][0] }}'
+  with_items:
+    - { usr: 'hdfs/cloudera', pass: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.cdh }}' }
+  when: kerberos.enabled
+
+- name: create dirs on hadoop
+  hdfs: dir={{ item.dir }} owner={{ item.owner }} mode={{ item.mode }} group={{ item.group }}
+  delegate_to: '{{ groups["cdh-master"][0] }}'
+  with_items:
+# cloudera can not create user home directory for their own services
+    - { dir: '/user/hbase', owner: 'hbase', group: 'supergroup', mode: '755' }
+    - { dir: '/user/hive', owner: 'hive', group: 'supergroup', mode: '755' }
+
+- name: download connectors for sqoop
+  get_url: url="{{ repo_host }}/files/{{ item }}" dest="/tmp/{{ item }}"
+  delegate_to: '{{ groups["cdh-master"][0] }}'
+  with_items: '{{ sqoop_connectors }}'
+
+- name: upload sqoop connectors
+  hdfs: src="/tmp/{{ item }}" dst="/user/oozie/share/lib/{{ item }}" owner=oozie group=oozie mode=644
+  delegate_to: '{{ groups["cdh-master"][0] }}'
+  with_items: '{{ sqoop_connectors }}'

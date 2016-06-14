@@ -1,0 +1,3 @@
+#temporary solution, needs k8s service with nodePort for docker registry
+DOCKER_OPTS="--log-opt max-size=100m --log-opt max-file=1 --tlsverify --tlscert=/etc/kubernetes/ssl/{{ inventory_hostname }}.crt --tlskey=/etc/kubernetes/ssl/{{ inventory_hostname }}.key --tlscacert=/etc/kubernetes/ssl/ca.crt -H unix:///var/run/docker.sock -H tcp://127.0.0.1:2376"
+

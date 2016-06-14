@@ -1,0 +1,104 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+- name: Install required OS packages
+  yum:
+    pkg: "{{ item }}"
+    state: installed
+  with_items: "{{ zabbix_db.os_packages }}"
+
+- name: Initiate zabbix database
+  command: service postgresql initdb
+  args:
+    creates: /var/lib/pgsql/data/postgresql.conf
+ 
+- name: Start PostgreSQL and enable at boot
+  service:
+    name: postgresql
+    enabled: yes
+    state: started
+
+- name: Ensure PostgreSQL is listening
+  lineinfile:
+    dest: /var/lib/pgsql/data/postgresql.conf
+    regexp: '^#?listen_addresses\s*='
+    line: "listen_addresses = '*'"
+    state: present
+  notify: Restart PostgreSQL service
+
+- name: Set PostgreSQL authentication_method to trust
+  set_fact:
+     authentication_method: trust
+
+- name: Apply pg_hba.conf changes
+  template:
+    src: pg_hba.conf.j2
+    dest: /var/lib/pgsql/data/pg_hba.conf
+    owner: postgres
+    group: postgres
+    mode: 0600
+  notify: Restart PostgreSQL service
+
+- meta: flush_handlers
+
+- name: Create PostgreSQL user for zabbix
+  postgresql_user:
+    name: "{{ zabbix_db.db_user }}"
+    password: "{{ zabbix_db.db_pass }}"
+    state: present
+
+- name: Create database for zabbix
+  postgresql_db:
+    name: "{{ zabbix_db.database }}"
+    encoding: UTF-8
+    owner: "{{ zabbix_db.db_user }}"
+    state: present
+
+- name: Grant PostgreSQL user for zabbix database rights
+  postgresql_user:
+    db: "{{ zabbix_db.database }}"
+    name: "{{ zabbix_db.db_user }}"
+    password: "{{ zabbix_db.db_pass }}"
+    priv: ALL
+    state: present
+
+- name: Import schema.sql file to zabbix database
+  shell: psql -U "{{ zabbix_db.db_user }}" "{{ zabbix_db.database }}"  </usr/share/doc/zabbix-server-pgsql-2.4.8/create/schema.sql
+  become_user: postgres
+
+- name: Import images.sql file to zabbix database
+  shell: psql -U "{{ zabbix_db.db_user }}" "{{ zabbix_db.database }}" </usr/share/doc/zabbix-server-pgsql-2.4.8/create/images.sql
+  become_user: postgres
+
+- name: Import data.sql file to zabbix database
+  shell: psql -U "{{ zabbix_db.db_user }}" "{{ zabbix_db.database }}" </usr/share/doc/zabbix-server-pgsql-2.4.8/create/data.sql
+  become_user: postgres
+
+- name: Set PostgreSQL authentication_method to md5
+  set_fact:
+     authentication_method: md5
+
+- name: Apply pg_hba.conf changes
+  template:
+    src: pg_hba.conf.j2
+    dest: /var/lib/pgsql/data/pg_hba.conf
+    owner: postgres
+    group: postgres
+    mode: 0600
+  notify:
+    - Restart PostgreSQL service
+
+- meta: flush_handlers

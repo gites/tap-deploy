@@ -1,0 +1,49 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Setup Cloudera Manager.
+#
+# Install, configure and start Cloudera Manager server.
+#
+###
+---
+
+- name: install cloudera packages
+  yum: pkg={{ item }} state=latest
+  with_items:
+    - cloudera-manager-daemons
+    - cloudera-manager-server
+    - python-pip
+
+- name: configure cloudera scm server database
+  template: src=db.j2 dest=/etc/cloudera-scm-server/db.properties mode=600 owner=cloudera-scm group=cloudera-scm
+
+- name: start cloudera manager server
+  service: name=cloudera-scm-server state=started
+
+- name: wait for port 7180 (cloudera manager) to become accessible
+  wait_for: port=7180
+
+- name: Install pip dependency
+  pip: name="{{ repo_host }}/pip/{{ item }}"
+  with_items:
+    - cm_api-13.0.0.tar.gz
+    - six-1.10.0-py2.py3-none-any.whl
+    - kazoo-2.2.1-py2.py3-none-any.whl
+    - argparse-1.4.0-py2.py3-none-any.whl
+    - PyYAML-3.12.tar.gz

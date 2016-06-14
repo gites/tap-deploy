@@ -1,0 +1,69 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Create private jumpbox ssh key in ec2 if not exists
+  ec2_key:
+    access_key: "{{ aws_access_key }}"
+    name: "{{ aws_jumpbox_key_name }}"
+    region: "{{ aws_region }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+  register: ec2_jumpbox_key
+
+- name: Save created private jumpbox ssh key locally if created
+  copy: 
+    content: "{{ ec2_jumpbox_key.key.private_key }}"
+    dest: "{{ aws_jumpbox_key_destination }}"
+    mode: 0600
+  when: ec2_jumpbox_key.changed
+
+- name: Verify if jumpbox key exists locally
+  stat: 
+    path: "{{ aws_jumpbox_key_destination }}"
+  register: aws_jumpbox_key
+
+- name: Fail if jumpbox key does not exists locally
+  fail: 
+    msg: "AWS jumpbox private key does not exists"
+  when: not aws_jumpbox_key.stat.exists
+
+- name: Create private cluster ssh key in ec2 if not exists
+  ec2_key:
+    access_key: "{{ aws_access_key }}"
+    name: "{{ aws_cluster_key_name }}"
+    region: "{{ aws_region }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+  register: ec2_cluster_key
+
+- name: Save created private cluster ssh key locally if created
+  copy: 
+    content: "{{ ec2_cluster_key.key.private_key }}"
+    dest: "{{ aws_cluster_key_destination }}"
+    mode: 0600
+  when: ec2_cluster_key.changed
+
+- name: Verify if jumpbox key exists locally
+  stat: 
+    path: "{{ aws_cluster_key_destination }}"
+  register: aws_cluster_key
+
+- name: Fail if cluster key does not exists locally
+  fail: 
+    msg: "AWS jumpbox private key does not exists"
+  when: not aws_cluster_key.stat.exists

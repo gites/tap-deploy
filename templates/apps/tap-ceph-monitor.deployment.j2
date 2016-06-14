@@ -1,0 +1,72 @@
+kind: "Deployment"
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    tap_app_type: CORE
+  name: tap-ceph-monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tap-ceph-monitor
+  template:
+    metadata:
+      labels:
+        app: tap-ceph-monitor
+    spec:
+      containers:
+      - env:
+        - name: CEPH_BROKER_USER
+          valueFrom:
+            configMapKeyRef:
+              key: ceph-broker-user
+              name: container-broker
+        - name: CEPH_BROKER_PASS
+          valueFrom:
+            configMapKeyRef:
+              key: ceph-broker-pass
+              name: container-broker
+        - name: CEPH_BROKER_HOST
+          valueFrom:
+            configMapKeyRef:
+              key: ceph-broker-host
+              name: container-broker
+        - name: CEPH_BROKER_PORT
+          valueFrom:
+            configMapKeyRef:
+              key: ceph-broker-port
+              name: container-broker
+        - name: BROKER_LOG_LEVEL
+          value: DEBUG
+        image: "{{ repository_uri }}/tap-ceph-monitor:{{ tap_version }}"
+        imagePullPolicy: Always
+        name: tap-ceph-monitor
+        terminationMessagePath: /dev/termination-log
+        volumeMounts:
+          - name: "tap-ceph-monitor-ca-pem-volume"
+            mountPath: "/etc/ssl/certs/ca.pem"
+            subPath: ca.pem
+            readOnly: true
+          - name: "tap-ceph-monitor-ca-certificates-crt-volume"
+            mountPath: "/etc/ssl/certs/ca-certificates.crt"
+            subPath: ca-certificates.crt
+            readOnly: true
+          - name: "tap-ceph-monitor-hashed-ca-volume"
+            mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+            subPath: "{{ ca_cert.json['hash'] }}.0"
+            readOnly: true        
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      volumes:
+        - name: "tap-ceph-monitor-ca-pem-volume"
+          secret:
+            secretName: "platform-ca-root-cert"
+        - name: "tap-ceph-monitor-ca-certificates-crt-volume"
+          secret:
+            secretName: "platform-ca-roots-bundle"
+        - name: "tap-ceph-monitor-hashed-ca-volume"
+          secret:
+            secretName: "platform-ca-root-cert-hashed"
+    
+

@@ -1,0 +1,30 @@
+[logging]
+default = FILE:/var/log/krb5libs.log
+kdc = FILE:/var/log/krb5kdc.log
+admin_server = FILE:/var/log/kadmind.log
+
+[libdefaults]
+default_realm = CLOUDERA
+dns_lookup_realm = false
+dns_lookup_kdc = false
+ticket_lifetime = {{ kerberos.ticket.lifetime }}
+renew_lifetime = {{ kerberos.ticket.renewtime }}
+forwardable = true
+
+[realms]
+CLOUDERA = {
+  kdc = {{ kerberos.server }}
+{% for item in (groups['cdh-master'] | difference(groups['cdh-manager'])) %}
+  kdc = {{ item }}
+{% endfor %}
+  admin_server = {{ kerberos.server }}
+  pkinit_anchors = FILE:/etc/krb5.cacert.pem
+}
+
+[domain_realm]
+.cloudera = CLOUDERA
+cloudera = CLOUDERA
+.internal = CLOUDERA
+internal = CLOUDERA
+.consul = CLOUDERA
+consul = CLOUDERA

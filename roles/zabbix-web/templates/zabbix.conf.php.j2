@@ -1,0 +1,19 @@
+<?php
+//{{ ansible_managed }}
+// Zabbix GUI configuration file
+global $DB;
+$DB['TYPE'] = 'POSTGRESQL';
+$DB['SERVER'] = '{{ zabbix_db.host }}';
+$DB['PORT'] = '5432';
+$DB['DATABASE'] = '{{ zabbix_db.database }}';
+$DB['USER'] = '{{ zabbix_db.db_user }}';
+$DB['PASSWORD'] = '{{ zabbix_db.db_pass }}';
+
+// SCHEMA is relevant only for IBM_DB2 database
+$DB['SCHEMA'] = '';
+
+$ZBX_SERVER = '{{ zabbix_server.host }}';
+$ZBX_SERVER_PORT = '{{ zabbix_server.server_conf.ListenPort }}';
+$ZBX_SERVER_NAME = '{{ zabbix_server.name }}';
+$IMAGE_FORMAT_DEFAULT = IMAGE_FORMAT_PNG;
+?>

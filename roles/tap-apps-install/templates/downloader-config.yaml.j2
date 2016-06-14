@@ -1,0 +1,9 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: downloader-config
+  labels:
+    id: downloader-config
+data:
+  hdfs-uri: "/org/%{organization}/datasets/"
+  default-fs: "hdfs://nameservice1"

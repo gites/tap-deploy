@@ -1,0 +1,248 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-small"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "10240",
+                  "volume_name": "influxdb-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": [],
+                "containers": [
+                  {
+                    "name": "influxdb110",
+                    "image": "$repository_uri/tap-influxdb:1.1.0",
+                    "volumeMounts":[
+                      {
+                        "mountPath": "/var/lib/influxdb",
+                        "name": "influxdb-persistent-storage"
+                      }
+                    ],
+                    "ports": [
+                      {
+                        "containerPort": 8083,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 8086,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name":"INFLUXDB_SERVICE_NAME",
+                        "value":"$idx_and_short_instance_id"
+                      },
+                      {
+                        "name": "INFLUXDB_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-influxdb110-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "INFLUXDB_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-influxdb110-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name":"INFLUXDB_HTTP_AUTH_ENABLED",
+                        "value":"true"
+                      },
+                      {
+                        "name":"INFLUXDB_META_DIR",
+                        "value":"/var/lib/influxdb/meta"
+                      },
+                      {
+                        "name":"INFLUXDB_DATA_DIR",
+                        "value":"/var/lib/influxdb/data"
+                      },
+                      {
+                        "name":"INFLUXDB_DATA_WAL_DIR",
+                        "value":"/var/lib/influxdb/wal"
+                      },
+                      {
+                        "name":"INFLUXDB_HINTED_HANDOFF_DIR",
+                        "value":"/var/lib/influxdb/hh"
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "2Gi"
+                      },
+                      "limits": {
+                        "memory": "2Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "port": 8083,
+                "protocol": "TCP",
+                "name":"admin"
+              },
+              {
+                "port": 8086,
+                "protocol": "TCP",
+                "name":"http"
+
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-influxdb110-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "username": "$base64-$random1",
+            "password": "$base64-$random2"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "influxdb-110",
+    "description": "Fast, highly-available database for storage and retrieval of time series data.",
+    "metadata":[
+      {"key": "displayName","value": "InfluxDB 1.1.0"},
+      {"key": "longDescription","value": "Fast, highly-available database for storage and retrieval of time series data."},
+      {"key": "documentationUrl","value": "http://influxdb.com/docs/v1.1/introduction/getting_started.html"},
+      {"key": "supportUrl","value": "https://customers.influxdb.com/"}
+    ],
+    "bindable": true,
+    "tags": [
+      "influxdb",
+      "database",
+      "time-series",
+      "iot"
+    ],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated InfluxDB 1.1.0 database. Resources used: 1 compute node, 2 GB RAM and 10 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

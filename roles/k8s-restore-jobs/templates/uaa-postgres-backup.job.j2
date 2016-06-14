@@ -1,0 +1,58 @@
+apiVersion: "extensions/v1beta1"
+kind: "Job"
+metadata:
+  name: "uaa-postgres-backup"
+spec:
+  template:
+    metadata:
+      labels:
+        backup: "uaa-postgres-backup"
+    spec:
+      containers:
+        - name: "postgres"
+          image: "{{ repository_uri }}/postgres:9.5.3"
+          command: ["uptime"]
+          ports:
+            - containerPort: 5432
+              protocol: "TCP"
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data/mnt
+              name: uaa-postgres-backup
+          resources:
+            limits:
+              # cpu: 100m
+              memory: 512Mi
+            requests:
+              # cpu: 50m
+              memory: 256Mi
+          env:
+            - name: "POSTGRES_PASSWORD"
+              valueFrom:
+                configMapKeyRef:
+                  name: "uaa-postgres"
+                  key: "password"
+            - name: "POSTGRES_USER"
+              valueFrom:
+                configMapKeyRef:
+                  name: "uaa-postgres"
+                  key: "user"
+            - name: "POSTGRES_DB"
+              valueFrom:
+                configMapKeyRef:
+                  name: "uaa-postgres"
+                  key: "database"
+            - name: "PGDATA"
+              value: "/var/lib/postgresql/data/mnt/data"
+          imagePullPolicy: "Always"
+      restartPolicy: "Never"
+      volumes:
+        - name: uaa-postgres-backup
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: uaa-postgres-backup
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false

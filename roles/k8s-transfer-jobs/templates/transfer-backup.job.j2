@@ -1,0 +1,40 @@
+apiVersion: extensions/v1beta1
+kind: Job
+metadata:
+  name: "transfer"
+spec:
+  template:
+    metadata:
+      name: transfer
+      labels:
+        backup: transfer
+    spec:
+      containers:
+        - name: transfer
+          image: "{{ repository_uri }}/alpacadb/docker-lftp"
+          command: ["/bin/sh", "-c", "sh /usr/bin/transfer/transfer-all"]
+          volumeMounts:
+{% for vol in backup_vol_list %}
+            - mountPath: /backup/{{ vol }}
+              name: {{ vol }}
+{% endfor %}
+          imagePullPolicy: "Always"
+      volumes:
+{% for vol in backup_vol_list %}
+        - name: {{ vol }}
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: {{ vol }}
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: true
+{% endfor %}
+
+        - name: transfer
+          configMap:
+            name: transfer-script
+
+      restartPolicy: "Never"

@@ -1,0 +1,64 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+- name: Install required OS packages
+  yum:
+    pkg: "{{ item }}"
+    state: installed
+  with_items: "{{ zabbix_agent.os_packages }}"
+
+- name: Create required directories
+  file:
+    path: /etc/zabbix/zabbix_agentd.d
+    recurse: yes
+    state: directory
+
+- name: Create zabbix agent configuration
+  template:
+    src: zabbix_agentd.conf.j2
+    dest: /etc/zabbix/zabbix_agentd.conf
+    owner: root
+    group: root
+    mode: 0644
+  notify: Restart zabbix agent
+
+- name: Register zabbix hosts groups
+  zabbix_group:
+    server_url: "http://{{ hostvars[groups['zabbix-web'].0].ansible_host }}:{{ zabbix_web.ListenPort }}"
+    login_user: "{{ zabbix_server.user_name }}"
+    login_password: "{{ zabbix_server.user_pass }}"
+    host_groups: "{{ zabbix_agent.default_groups }}"
+  delegate_to: "{{ hostvars[groups['zabbix-server'].0].ansible_host }}"
+  run_once: yes
+
+- name: Register zabbix hosts
+  zabbix_host:
+    server_url: "http://{{ hostvars[groups['zabbix-web'].0].ansible_host }}:{{ zabbix_web.ListenPort }}"
+    login_user: "{{ zabbix_server.user_name }}"
+    login_password: "{{ zabbix_server.user_pass }}"
+    host_name: "{{ hostvars[item].inventory_hostname }}"
+    interfaces:
+      - type: 1
+        main: 1
+        useip: 1
+        ip: "{{ hostvars[item].ansible_host }}"
+        dns: ""
+        port: "{{ zabbix_agent.agent_conf.ListenPort }}"
+    link_templates: "{{ zabbix_agent.default_templates }}"
+    host_groups: "{{ zabbix_agent.default_groups }}"
+  delegate_to: "{{ hostvars[groups['zabbix-server'].0].ansible_host }}"
+  run_once: yes
+  with_items: "{{ groups['all'] }}"

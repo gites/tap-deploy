@@ -1,0 +1,21 @@
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: kube-dns
+    version: v11
+    kubernetes.io/cluster-service: "true"
+    kubernetes.io/name: "KubeDNS"
+  name: kube-dns
+  namespace: kube-system
+spec:
+  clusterIP: "{{ kubedns_clusterip }}"
+  ports:
+  - name: dns
+    port: 53
+    protocol: UDP
+  - name: dns-tcp
+    port: 53
+    protocol: TCP
+  selector:
+    app: kube-dns

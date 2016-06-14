@@ -1,0 +1,86 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# CentOS 7 (x86_64) - with Updates HVM
+# https://aws.amazon.com/marketplace/pp/B00O7WM7QW?ref=cns_srchrow
+# CentOS Linux 7 x86_64 HVM EBS 1602-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d7e1d2bd.3
+# Sold by: Centos.org
+aws_cdh_image:
+  us-east-1: "ami-6d1c2007"
+  us-west-1: "ami-af4333cf"
+  us-west-2: "ami-d2c924b2"
+  ap-south-1: "ami-95cda6fa"
+  ap-northeast-2: "ami-c74789a9"
+  ap-southeast-1: "ami-c74789a9"
+  ap-southeast-2: "ami-fedafc9d"
+  ap-northeast-1: "ami-eec1c380"
+  eu-central-1: "ami-9bf712f4"
+  eu-west-1: "ami-7abd0209"
+  sa-east-1: "ami-26b93b4a"
+
+# CentOS Linux 7 x86_64 HVM EBS 1602CentOS Linux 7 x86_64 HVM EBS 1602
+aws_jumpbox_image:
+  us-east-1: "ami-6d1c2007"
+  us-west-1: "ami-af4333cf"
+  us-west-2: "ami-d2c924b2"
+  ap-south-1: "ami-95cda6fa"
+  ap-northeast-2: "ami-c74789a9"
+  ap-southeast-1: "ami-f068a193"
+  ap-southeast-2: "ami-fedafc9d"
+  ap-northeast-1: "ami-eec1c380"
+  eu-central-1: "ami-9bf712f4"
+  eu-west-1: "ami-7abd0209"
+  sa-east-1: "ami-26b93b4a"
+
+# CentOS Linux 7 x86_64 HVM EBS 1602CentOS Linux 7 x86_64 HVM EBS 1602
+aws_k8s_image:
+  us-east-1: "ami-6d1c2007"
+  us-west-1: "ami-af4333cf"
+  us-west-2: "ami-d2c924b2"
+  ap-south-1: "ami-95cda6fa"
+  ap-northeast-2: "ami-c74789a9"
+  ap-southeast-1: "ami-f068a193"
+  ap-southeast-2: "ami-fedafc9d"
+  ap-northeast-1: "ami-eec1c380"
+  eu-central-1: "ami-9bf712f4"
+  eu-west-1: "ami-7abd0209"
+  sa-east-1: "ami-26b93b4a"
+
+# image: amzn-ami-vpc-nat-hvm-2016.03.3.x86_64-ebs
+# https://aws.amazon.com/amazon-linux-ami/
+aws_nat_image:
+  us-east-1: "ami-4868ab25"
+  us-west-1: "ami-004b0f60"
+  us-west-2: "ami-a275b1c2"
+  ap-south-1: "ami-e2b9d38d"
+  ap-northeast-2: "ami-d14388bf"
+  ap-southeast-1: "ami-a79b49c4"
+  ap-southeast-2: "ami-53371f30"
+  ap-northeast-1: "ami-2443b745"
+  eu-central-1: "ami-5825cd37"
+  eu-west-1: "ami-a8dd45db"
+  sa-east-1: "ami-9336bcff"
+
+# Predefined instance types
+instance_types:
+  nano: t2.nano
+  micro: t2.micro
+  small: t2.small
+  medium: m3.medium
+  large: m4.large
+  largex: m4.xlarge
+  largex2: m4.2xlarge
+  largex4: m4.4xlarge

@@ -1,0 +1,350 @@
+{
+  "template": {
+    "body": [
+      {
+        "componentType": "instance",
+        "persistentVolumeClaims": null,
+        "deployments": [
+          {
+            "kind": "Deployment",
+            "apiVersion": "extensions/v1beta1",
+            "metadata": {
+              "name": "$idx_and_short_instance_id",
+              "creationTimestamp": null,
+              "labels": {
+                "plan_id": "$plan_id",
+                "offering_id": "$offering_id",
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "managed_by": "TAP",
+                "org": "$org",
+                "instance_id": "$instance_id",
+                "space": "$space"
+              },
+              "annotations": {
+                "plan_names": "single-small"
+              }
+            },
+            "spec": {
+              "replicas": 1,
+              "selector": {
+                "matchLabels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "template": {
+                "metadata": {
+                  "creationTimestamp": null,
+                  "labels": {
+                    "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                    "managed_by": "TAP",
+                    "instance_id": "$instance_id"
+                  },
+                  "annotations":{
+                    "volume_read_only": "false",
+                    "volume_size_mb": "10240",
+                    "volume_name": "mysql56-persistent-storage"
+                  }
+                },
+                "spec": {
+                  "volumes": [],
+                  "containers": [
+                    {
+                      "name": "mysql56",
+                      "image": "$repository_uri/frodenas/mysql:5.6",
+                      "ports": [
+                        {
+                          "containerPort": 3306,
+                          "protocol": "TCP"
+                        }
+                      ],
+                      "env": [
+                        {
+                          "name": "MYSQL_USERNAME",
+                          "valueFrom": {
+                            "secretKeyRef": {
+                              "Name": "$short_instance_id-mysql56-credentials",
+                              "key": "username"
+                            }
+                          }
+                        },
+                        {
+                          "name": "MYSQL_PASSWORD",
+                          "valueFrom": {
+                            "secretKeyRef": {
+                              "Name": "$short_instance_id-mysql56-credentials",
+                              "key": "password"
+                            }
+                          }
+                        },
+                        {
+                          "name": "MYSQL_DBNAME",
+                          "valueFrom": {
+                            "secretKeyRef": {
+                              "Name": "$short_instance_id-mysql56-credentials",
+                              "key": "dbname"
+                            }
+                          }
+                        },
+                        {
+                          "name": "MANAGED_BY",
+                          "value": "TAP"
+                        },
+                        {
+                          "name": "MYSQL_HOSTNAME",
+                          "value": "$short_instance_id"
+                        }
+                      ],
+                      "volumeMounts": [
+                        {
+                          "name": "mysql56-persistent-storage",
+                          "mountPath": "/var/lib/mysql"
+                        }
+                      ],
+                      "resources": {
+                        "requests": {
+                          "memory": "1Gi"
+                        },
+                        "limits": {
+                          "memory": "1Gi"
+                        }
+                      },
+                      "imagePullPolicy": "IfNotPresent"
+                    }
+                  ],
+                  "restartPolicy": "Always",
+                  "dnsPolicy": "ClusterFirst",
+                  "serviceAccountName": ""
+                }
+              },
+              "strategy": {}
+            },
+            "status": {}
+          },
+          {
+            "kind": "Deployment",
+            "apiVersion": "extensions/v1beta1",
+            "metadata": {
+              "name": "$idx_and_short_instance_id",
+              "creationTimestamp": null,
+              "labels": {
+                "plan_id": "$plan_id",
+                "offering_id": "$offering_id",
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "managed_by": "TAP",
+                "org": "$org",
+                "instance_id": "$instance_id",
+                "space": "$space"
+              },
+              "annotations": {
+                "plan_names": "single-medium"
+              }
+            },
+            "spec": {
+              "replicas": 1,
+              "selector": {
+                "matchLabels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "template": {
+                "metadata": {
+                  "creationTimestamp": null,
+                  "labels": {
+                    "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                    "managed_by": "TAP",
+                    "instance_id": "$instance_id"
+                  },
+                  "annotations":{
+                    "volume_read_only": "false",
+                    "volume_size_mb": "102400",
+                    "volume_name": "mysql56-persistent-storage"
+                  }
+                },
+                "spec": {
+                  "volumes": [],
+                  "containers": [
+                    {
+                      "name": "mysql56",
+                      "image": "$repository_uri/frodenas/mysql:5.6",
+                      "ports": [
+                        {
+                          "containerPort": 3306,
+                          "protocol": "TCP"
+                        }
+                      ],
+                      "env": [
+                        {
+                          "name": "MYSQL_USERNAME",
+                          "valueFrom": {
+                            "secretKeyRef": {
+                              "Name": "$short_instance_id-mysql56-credentials",
+                              "key": "username"
+                            }
+                          }
+                        },
+                        {
+                          "name": "MYSQL_PASSWORD",
+                          "valueFrom": {
+                            "secretKeyRef": {
+                              "Name": "$short_instance_id-mysql56-credentials",
+                              "key": "password"
+                            }
+                          }
+                        },
+                        {
+                          "name": "MYSQL_DBNAME",
+                          "valueFrom": {
+                            "secretKeyRef": {
+                              "Name": "$short_instance_id-mysql56-credentials",
+                              "key": "dbname"
+                            }
+                          }
+                        },
+                        {
+                          "name": "MANAGED_BY",
+                          "value": "TAP"
+                        },
+                        {
+                          "name": "MYSQL_HOSTNAME",
+                          "value": "$short_instance_id"
+                        }
+                      ],
+                      "volumeMounts": [
+                        {
+                          "name": "mysql56-persistent-storage",
+                          "mountPath": "/var/lib/mysql"
+                        }
+                      ],
+                      "resources": {
+                        "requests": {
+                          "memory": "6Gi"
+                        },
+                        "limits": {
+                          "memory": "6Gi"
+                        }
+                      },
+                      "imagePullPolicy": "IfNotPresent"
+                    }
+                  ],
+                  "restartPolicy": "Always",
+                  "dnsPolicy": "ClusterFirst",
+                  "serviceAccountName": ""
+                }
+              },
+              "strategy": {}
+            },
+            "status": {}
+          }
+        ],
+        "services": [
+          {
+            "kind": "Service",
+            "apiVersion": "v1",
+            "metadata": {
+              "name": "$idx_and_short_instance_id",
+              "creationTimestamp": null,
+              "labels": {
+                "plan_id": "$plan_id",
+                "offering_id": "$offering_id",
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "managed_by": "TAP",
+                "org": "$org",
+                "instance_id": "$instance_id",
+                "space": "$space"
+              }
+            },
+            "spec": {
+              "type": "NodePort",
+              "ports": [
+                {
+                  "protocol": "TCP",
+                  "port": 3306
+                }
+              ],
+              "selector": {
+                "instance_id": "$instance_id"
+              }
+            },
+            "status": {
+              "loadBalancer": {}
+            }
+          }
+        ],
+        "serviceAccounts": [
+          {
+            "kind": "ServiceAccount",
+            "apiVersion": "v1",
+            "metadata": {
+              "name": "$idx_and_short_instance_id",
+              "creationTimestamp": null,
+              "labels": {
+                "plan_id": "$plan_id",
+                "offering_id": "$offering_id",
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "managed_by": "TAP",
+                "org": "$org",
+                "instance_id": "$instance_id",
+                "space": "$space"
+              }
+            },
+            "secrets": null
+          }
+        ],
+        "secrets": [
+          {
+            "kind": "Secret",
+            "apiVersion": "v1",
+            "metadata": {
+              "name": "$short_instance_id-mysql56-credentials",
+              "creationTimestamp": null,
+              "labels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "managed_by": "TAP",
+                "instance_id": "$instance_id"
+              }
+            },
+            "data": {
+              "password": "$base64-$random1",
+              "username": "$base64-$random2",
+              "dbname": "$base64-$random3"
+            }
+          }
+        ]
+      }
+    ],
+    "hooks": null
+
+  },
+  "services" : [{
+    "name": "mysql-56",
+    "description": "Relational database management system.",
+    "metadata":[
+      {"key":"displayName","value": "MySQL 5.6"},
+      {"key":"imageUrl","value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACZ1BMVEUAAAD///9XX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3RXX3ScHQA3AAAAzHRSTlMAAAECAwQFBgcICQoLDQ8QERITFBUWFxobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNTY3Oz0+P0BBQ0RGR0hJSktNTk9QUVJTVldYWVpbXF5fYGFiZGVnaGlqa2xub3B1d3h5ent/gIOEhYaHiImKjY6PkJGSk5SVlpeYm5ydnqCjpaanqKqsra6vsLGztLW3ur6/wMHCw8TFxsfIycrLzc7P0NHS09TW19jZ29zd3uDh4uPk5ebn6err7O7v8fLz9PX29/j5+vv8/f6bkW+/AAADLklEQVR4XqXT+VdVVRiH8a/nci/ITQpQbpORNJEUmURlhgrNGhaYzQOahmRUlg1imrOVaQmkSalokg2iRqR0IbxacRCfPyrWOmux6Mwcnx/3Xp/1/rDfrUmXkSZp3hEGP87XxBvFNSMA6XojCu7Cqv22CBgofekvwFydO2GchpWa9inAqWWNy5fcO2UCuAlGaqR7jmHFpaOrZhshcc5BOFcqxV8ZZKz9peGwUmfhZL6kosb332zZ3QvAcGMiFFbFELTGx85SdV8CdJaEwqoHPtS45p4AMgtDYb0HVEiSsm+ISVJyLcDbsTA4qxOaJanwFF9borof2JkbAqsBjkpSLTDDAtf/ALQmQ+CbgBsl3WLyx2RZJXcD3yeDsbpglSSVLU2NXWZtAlpzgvGr0BOXLaMF2GoE4sJ/oV4OvQVYGYi1Hrodo5W9F4ZvD8TFF+E5Ocrvg++MIKwNMDDNqWuBukBcNAgb5Gwf9EwOwloBfXI2C3gtEK+BPXJpF5zNDcCxM7DIDZcDywJwJWRy5TG6N+6Pm2G7XLsLeMIffwtL5d43sN8X55gw3QMvBMr98EzIyKPEGVjnh6ugS5LmPSBnjZBO+OBHoF3S867LOB2o9sEL4LB0xQAcN5z6AGzzwXfAUJ5qAeY78YtwobLIE2cNQJ02A7Q7ceEwQGZvw62uWJ/AAR0DoMqpv8CKfYtiLrgCuL8ffoTDMQee+u7nHWmLH7/PidUxCk2Ya8Izcu3qus9MgDUJB54DAMVroa9AHqXeGQLa8uxY2wC4+6o/Ybs8K+kADubZ8ZXd1kMtBp721omPgLaEDaukF3hK2gX/zJJ3zcAHdqzrDmHOlAp+g94ZPnor8KAdK/FYuSTN/htOl7ix5JyX39q4afMlOJFjYWcPj0C60i6zl7SZjLXCC2vxCFx83bajpxnfEU+sh85D0//x4wAMHPpqx56ONKz2xir75fekbcHOATWGBfKL5YOVvFO2HgV+nWr7VaF7A/j5mohY64CesojYaAHO10bDMpoAthREwtKTF4D+F+KRsG7uBOh+NhkFK9GQAfgpEpZS601YHhFL1zafnDKKo3d5+D8a17nGQDswlwAAAABJRU5ErkJggg=="},
+      {"key":"longDescription","value": "Relational database management system."},
+      {"key":"providerDisplayName","value": "Ferran Rodenas"},
+      {"key":"documentationUrl","value": "https://github.com/frodenas/docker-mysql/blob/master/README.md"},
+      {"key":"supportUrl","value": "https://github.com/frodenas/docker-mysql"}
+    ],
+    "bindable": true,
+    "tags": [
+      "mysql",
+      "sql",
+      "database"
+    ],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated MySQL 5.6 database server. Resources used: 1 compute node, 1 GB RAM and 10 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      },
+      {
+        "name": "single-medium",
+        "description": "Create dedicated MySQL 5.6 database server. Resources used: 1 compute node, 6 GB RAM and 100 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

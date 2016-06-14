@@ -1,0 +1,412 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+#TODO remove ignore errors
+- name: METRICS Prometheus ConfigMap
+  ignore_errors: yes
+  tags:
+    - prometheus
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: metrics-prometheus
+      data:
+        prometheus.yml: "{{ lookup('template', 'metrics-prometheus.yml.j2') }}"
+
+- name: METRICS Prometheus Service
+  ignore_errors: yes
+  tags:
+    - prometheus
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        annotations:
+          prometheus.io/scrape: 'true'
+        name: metrics-prometheus
+      spec:
+        selector:
+          system: metrics
+          kind: app
+          application: prometheus
+        ports:
+        - name: prometheus
+          protocol: TCP
+          port: 9090
+
+
+- name: METRICS Prometheus Deployment
+  ignore_errors: yes
+  tags:
+    - prometheus
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      metadata:
+        name: metrics-prometheus
+        labels:
+          tap_app_type: CORE
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            system: metrics
+            kind: app
+            application: prometheus
+            app: metrics-prometheus
+        template:
+          metadata:
+            name: prometheus
+            labels:
+              system: metrics
+              kind: app
+              application: prometheus
+              app: metrics-prometheus
+          spec:
+            containers:
+            - name: metrics-prometheus
+              image: "{{ repository_uri }}/prom/prometheus:v1.1.2"
+              args:
+                - '-storage.local.retention={{ retention }}'
+                - '-storage.local.memory-chunks=262144'
+                - '-storage.local.max-chunks-to-persist=131072'
+                - '-web.console.libraries=/etc/prometheus/console_libraries'
+                - '-web.console.templates=/etc/prometheus/consoles'
+                - '-config.file=/etc/prometheus/prometheus.yml'
+              ports:
+              - name: web
+                containerPort: 9090
+              readinessProbe:
+                httpGet:
+                  path: /
+                  port: 9090
+                timeoutSeconds: 1
+                initialDelaySeconds: 1
+              resources:
+                limits:
+                  memory: "{{ prometheus_memory_limit }}"
+                requests:
+                  memory: "{{ prometheus_memory_limit }}"
+              volumeMounts:
+              - name: config-volume
+                mountPath: /etc/prometheus
+              - name: data-volume
+                mountPath: /prometheus
+            volumes:
+            - name: config-volume
+              configMap:
+                name: metrics-prometheus
+            - name: data-volume
+              rbd:
+                monitors: "{{ rbd_monitors }}"
+                pool: rbd
+                image: prometheus-store
+                user: admin
+                secretRef:
+                  name: ceph-secret
+                fsType: ext4
+                readOnly: false
+
+
+
+# GRAFANA
+
+- name: METRICS Grafana Service
+  ignore_errors: yes
+  tags:
+    - grafana
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: metrics-grafana
+      spec:
+        selector:
+          system: metrics
+          kind: app
+          application: grafana
+        ports:
+        - name: web
+          protocol: TCP
+          port: 80
+          targetPort: 3000
+
+
+- name: METRICS Grafana Deployment
+  ignore_errors: yes
+  tags:
+    - grafana
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      metadata:
+        name: metrics-grafana
+        labels:
+          tap_app_type: CORE
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            system: metrics
+            kind: app
+            application: grafana
+            app: metrics-grafana
+        template:
+          metadata:
+            name: grafana
+            labels:
+              system: metrics
+              kind: app
+              application: grafana
+              app: metrics-grafana
+          spec:
+            containers:
+            - name: metrics-grafana-uaa-syncer
+              image: "{{ repository_uri }}/metrics-grafana-uaa-syncer:{{ tap_version }}"
+              env:
+              - name: GRAFANA_URL
+                value: "http://localhost:3000"
+              - name: GRAFANA_USER
+                valueFrom:
+                  configMapKeyRef:
+                    name: "grafana"
+                    key: "grafana-basic-user"
+              - name: GRAFANA_PASSWORD
+                valueFrom:
+                  configMapKeyRef:
+                    name: "grafana"
+                    key: "grafana-basic-password"
+              - name: UAA_URL
+                value: "http://uaa.default:{{ uaa_insecure_port }}"
+              - name: CLIENT_ID
+                value: grafana
+              - name: CLIENT_SECRET
+                value: "{{ hostvars[groups['k8s-master'][0]].passwords.uaa.grafana_secret }}"
+            - name: metrics-grafana
+              image: "{{ repository_uri }}/metrics-grafana:{{ tap_version }}"
+              ports:
+              - name: web
+                containerPort: 3000
+              readinessProbe:
+                httpGet:
+                  path: /
+                  port: 3000
+                timeoutSeconds: 1
+                initialDelaySeconds: 1
+              resources:
+                limits:
+                  memory: "{{ grafana_memory_limit }}"
+                requests:
+                  memory: "{{ grafana_memory_limit }}"
+              env:
+              - name: GF_SERVER_DOMAIN
+                value: "grafana.{{ tap_domain_name }}"
+              - name: GF_SERVER_ROOT_URL
+                value: "{{ external_protocol }}://grafana.{{ tap_domain_name }}"
+                # anonymous access only for backward compatibility - until console is ready
+              - name: GF_AUTH_ANONYMOUS_ENABLED
+                value: "false"
+              - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+                value: Viewer
+              - name: GF_AUTH_BASIC_ENABLED
+                value: "true"
+              - name: GF_SECURITY_ADMIN_PASSWORD
+                valueFrom:
+                  configMapKeyRef:
+                    name: "grafana"
+                    key: "grafana-basic-password"
+              - name: GF_AUTH_DISABLE_LOGIN_FORM
+                value: "true"
+              - name: GF_AUTH_GENERIC_OAUTH_ENABLED
+                value: "true"
+              - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+                value: grafana
+              - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+                value: "{{ hostvars[groups['k8s-master'][0]].passwords.uaa.grafana_secret }}"
+              - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
+                value: "false"
+              - name: GF_AUTH_GENERIC_OAUTH_SCOPES
+                value: "openid"
+              - name: GF_AUTH_GENERIC_OAUTH_API_URL
+                value: "http://uaa.default:{{ uaa_insecure_port }}/userinfo"
+              - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+                value: "{{ external_protocol }}://uaa.{{ tap_domain_name }}/oauth/authorize"
+              - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+                value: "http://uaa.default:{{ uaa_insecure_port }}/oauth/token"
+              - name: GF_PATHS_DATA
+                value: /grafana-data
+              # below can be used to prepopulate it with dashboards
+              #- name: GF_DASHBOARDS_JSON_ENABLED
+              #  value: true
+              #- name: GF_DASHBOARDS_JSON_PATH
+              #  value: "/grafana-dashboards"`
+              volumeMounts:
+              - name: data-volume
+                mountPath: /grafana-data
+            volumes:
+            - name: data-volume
+              rbd:
+                monitors: "{{ rbd_monitors }}"
+                pool: rbd
+                image: grafana-store
+                user: admin
+                secretRef:
+                  name: ceph-secret
+                fsType: ext4
+                readOnly: false
+
+
+- name: Create a ConfigMap instance Grafana
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: ConfigMap
+      apiVersion: v1
+      metadata:
+        name: grafana
+      data:
+        host: "http://metrics-grafana.default.svc.{{ local_domain }}:80"
+        host-tap-domain: "{{ external_protocol }}://grafana.{{ tap_domain_name }}"
+        grafana-basic-user: admin
+        grafana-basic-password: "{{ hostvars[groups['k8s-master'][0]].passwords.grafana.admin_password }}"
+    state: present
+
+
+- name: METRICS Grafana Ingress
+  ignore_errors: yes
+  tags:
+    - grafana
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: grafana
+        annotations:
+          useExternalSsl: "{{ enable_external_ssl }}"
+      spec:
+        rules:
+        - host: "grafana.{{ tap_domain_name }}"
+          http:
+            paths:
+            - path: "/"
+              backend:
+                serviceName: "metrics-grafana"
+                servicePort: 80
+
+
+# Ceph_exporter
+
+- name: METRICS Ceph_exporter service
+  ignore_errors: yes
+  tags:
+    - metrics-ceph-exporter
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        annotations:
+          prometheus.io/scrape: 'true'
+        name: metrics-ceph-exporter
+      spec:
+        selector:
+          system: metrics
+          kind: app
+          application: ceph-exporter
+        ports:
+        - protocol: TCP
+          port: 9128
+
+- name: METRICS Ceph_exporter deployment
+  ignore_errors: yes
+  tags:
+    - metrics-ceph-exporter
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      metadata:
+        name: metrics-ceph-exporter
+        labels:
+          tap_app_type: CORE
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            system: metrics
+            kind: app
+            application: ceph-exporter
+            app: metrics-ceph-exporter
+        template:
+          metadata:
+            name: metrics-ceph-exporter
+            labels:
+              system: metrics
+              kind: app
+              application: ceph-exporter
+              app: metrics-ceph-exporter
+          spec:
+            containers:
+            - name: metrics-ceph-exporter
+              image: "{{ repository_uri }}/metrics-ceph-exporter:{{ tap_version }}"
+              ports:
+               - containerPort: 9128
+              volumeMounts:
+                - mountPath: /etc/ceph/ceph.conf
+                  name: ceph-conf
+                - mountPath: /etc/ceph/ceph.client.admin.keyring
+                  name: ceph-keyring
+              imagePullPolicy: "Always"
+            volumes:
+            - name: ceph-conf
+              hostPath:
+                path: /etc/ceph/ceph.conf
+            - name: ceph-keyring
+              hostPath:
+                path: /etc/ceph/ceph.client.admin.keyring

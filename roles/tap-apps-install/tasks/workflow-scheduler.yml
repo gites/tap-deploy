@@ -1,0 +1,153 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: WorkflowScheduler PostgreSQL service
+  ignore_errors: yes
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Service"
+      apiVersion: "v1"
+      metadata:
+        name: "ws-postgres"
+        labels:
+          id: "ws-postgres"
+      spec:
+        type: "LoadBalancer"
+        selector:
+          id: "workflowscheduler-postgres"
+        ports:
+          - port: 5432
+            protocol: "TCP"
+            name: "pg"
+    state: present
+
+- name: WorkflowScheduler Create PostgreSQL ConfigMap
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "ConfigMap"
+      apiVersion: "v1"
+      metadata:
+        name: "workflowscheduler-postgres"
+      data:
+        user: "workflowscheduler"
+        password: "{{ hostvars[groups['k8s-master'][0]].passwords.applications.ws_postgres_pass }}"
+        host: "ws-postgres"
+        port: "5432"
+        dbname: "workflowscheduler"
+    state: present
+
+
+- name: WorkflowScheduler Create PostgreSQL deployment
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Deployment"
+      apiVersion: "extensions/v1beta1"
+      metadata:
+        name: "workflowscheduler-postgres"
+      spec:
+        replicas: 1
+        template:
+          metadata:
+            labels:
+              id: "workflowscheduler-postgres"
+          spec:
+            containers:
+              - name: "postgres"
+                image: "{{ repository_uri }}/postgres:9.5.3"
+                ports:
+                  - containerPort: 5432
+                    protocol: "TCP"
+                resources:
+                  limits:
+                    cpu: 200m
+                    memory: "{{ workflow_sheduler_postgres_memory_limit }}"
+                  requests:
+                    cpu: 50m
+                    memory: "{{ workflow_sheduler_postgres_memory_limit }}"
+                env:
+                  - name: "POSTGRES_PASSWORD"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "workflowscheduler-postgres"
+                        key: "password"
+                  - name: "POSTGRES_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "workflowscheduler-postgres"
+                        key: "user"
+                  - name: "POSTGRES_DB"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "workflowscheduler-postgres"
+                        key: "dbname"
+                imagePullPolicy: "Always"
+            restartPolicy: "Always"
+            dnsPolicy: "ClusterFirst"
+    state: present
+
+- name: Create directory for k8s templates
+  file: path=/home/{{ ansible_user }}/tap_templates state=directory
+
+- include: create-resource.yml dir=/home/{{ ansible_user }}/tap_templates name={{item.name}} templ={{item.templ}}
+  with_items:
+  - { name: 'Workflow Scheduler Deployment', templ: 'workflow-scheduler.yaml.j2' }
+
+- name: WorkflowScheduler service details
+  ignore_errors: yes
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Service"
+      apiVersion: "v1"
+      metadata:
+        name: "workflow-scheduler"
+        labels:
+          app: "workflow-scheduler"
+      spec:
+        type: "LoadBalancer"
+        selector:
+          app: "workflow-scheduler"
+        ports:
+          - port: 80
+            protocol: "TCP"
+            targetPort: 8080
+    state: present
+
+- name: WorkflowScheduler ConfigMap
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "ConfigMap"
+      apiVersion: "v1"
+      metadata:
+        name: "workflow-scheduler"
+      data:
+        host: "workflow-scheduler"
+        port: "8080"
+    state: present
+
+
+

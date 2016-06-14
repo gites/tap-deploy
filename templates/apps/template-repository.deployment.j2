@@ -1,0 +1,120 @@
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  name: "template-repository"
+  labels:
+    tap_app_type: CORE
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: template-repository
+    spec:
+      containers:
+        - name: "nginx-ssl"
+          image: "{{ repository_uri }}/tap-nginx-dyn-stream:{{ tap_version }}"
+          volumeMounts:
+            - name: "template-repository-certkey-volume"
+              mountPath: "/etc/nginx/ssl"
+          ports:
+            - containerPort: 443
+              protocol: "TCP"
+          imagePullPolicy: "Always"
+        - name: "template-repository"
+          image: "{{ repository_uri }}/tap-template-repository:{{ tap_version }}"
+          volumeMounts:
+            - name: "template-repository-ca-pem-volume"
+              mountPath: "/etc/ssl/certs/ca.pem"
+              subPath: ca.pem
+              readOnly: true
+            - name: "template-repository-ca-certificates-crt-volume"
+              mountPath: "/etc/ssl/certs/ca-certificates.crt"
+              subPath: ca-certificates.crt
+              readOnly: true
+            - name: "template-repository-hashed-ca-volume"
+              mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+              subPath: "{{ ca_cert.json['hash'] }}.0"
+              readOnly: true
+          ports:
+            - containerPort: 80
+              protocol: "TCP"
+          resources:
+            limits:
+              memory: "{{ template_repository_memory_limit }}"
+            requests:
+              memory: "{{ template_repository_memory_limit }}"
+          volumeMounts:
+            - mountPath: /opt/app/catalogData
+              name: template-repository
+          env:
+            - name: "TEMPLATE_REPOSITORY_PORT"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "port"
+            - name: "TEMPLATE_REPOSITORY_USER"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "user"
+            - name: "TEMPLATE_REPOSITORY_PASS"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "pass"
+            - name: "DOMAIN"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "domain"
+            - name: "BROKER_LOG_LEVEL"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "broker-log-level"
+            - name: "CORE_ORGANIZATION_UUID"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform"
+                  key: "core-org-uuid"
+            - name: "REPOSITORY_URI"
+              value: {{ repository_uri }}
+            - name: "TAP_VERSION"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform"
+                  key: "tap-version"
+            - name: "NGINX_SSL_IMAGE_NAME"
+              value: "tap-nginx-dyn-stream:{{ tap_version }}"
+            - name: "USE_EXTERNAL_SSL"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "use-external-ssl-flag"
+          imagePullPolicy: "Always"
+      restartPolicy: "Always"
+      dnsPolicy: "ClusterFirst"
+      volumes:
+        - name: template-repository
+          rbd:
+            monitors: [{% for item in groups["mons"]%}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]
+            pool: rbd
+            image: template-repository
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+        - name: "template-repository-ca-pem-volume"
+          secret:
+            secretName: "platform-ca-root-cert"
+        - name: "template-repository-ca-certificates-crt-volume"
+          secret:
+            secretName: "platform-ca-roots-bundle"
+        - name: "template-repository-hashed-ca-volume"
+          secret:
+            secretName: "platform-ca-root-cert-hashed"
+        - name: "template-repository-certkey-volume"
+          secret:
+            secretName: "template-repository-certkey"

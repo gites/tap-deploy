@@ -1,0 +1,12 @@
+[submodule "roles/ceph.ceph-client"]
+	path = roles/ceph.ceph-client
+	url = https://github.com/staticfork/ansible-ceph-client
+[submodule "roles/ceph.ceph-common"]
+	path = roles/ceph.ceph-common
+	url = https://github.com/staticfork/ansible-ceph-common
+[submodule "roles/ceph.ceph-mon"]
+	path = roles/ceph.ceph-mon
+	url = https://github.com/staticfork/ansible-ceph-mon
+[submodule "roles/ceph.ceph-osds"]
+	path = roles/ceph.ceph-osds
+	url = https://github.com/staticfork/ansible-ceph-osd

@@ -1,0 +1,80 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Copy ceph broker
+  copy:
+    src: "{{ item }}"
+    dest: "/www/repository/yum/repository/"
+  register: copy_result
+  with_fileglob:
+    - "files/tap-ceph-broker-*.el7.centos.x86_64.rpm"
+
+- name: Install ceph broker
+  yum: 
+    name: "{{ copy_result.results[0].dest }}"
+    state: present
+
+- name: Set ceph broker config
+  template: 
+    src: config.j2 
+    dest: /etc/sysconfig/tap-ceph-broker
+    mode: 0600
+
+- name: Get ceph broker CertKey
+  uri:
+    url: "http://{{ ca_service_clusterip }}/api/v1/certkey/ceph-broker"
+    method: GET
+    user: "{{ ca_service.user }}"
+    password: "{{ hostvars[groups['k8s-master'][0]].passwords.ca_service.pass }}"
+    force_basic_auth: yes
+    status_code: 200
+    return_content: yes
+    timeout: 60
+  register: certkey
+
+- name: Create directory for cert and key files
+  file:
+    path: /etc/tap-ceph-broker
+    state: directory
+    group: root
+    owner: root
+    mode: 0640
+
+- name: Create certificate for ceph broker ssl
+  copy:
+    dest: "{{ ceph_broker_cert_path }}"
+    content: "{{ certkey.json['cert'] }}"
+    group: root
+    owner: root
+    mode: 0640
+    backup: yes
+
+- name: Create RSA key for ceph broker ssl
+  copy:
+    dest: "{{ ceph_broker_key_path }}"
+    content: "{{ certkey.json['key'] }}"
+    group: root
+    owner: root
+    mode: 0640
+    backup: yes
+
+- name: Start ceph service
+  service:
+    name: tap-ceph-broker
+    state: started
+    enabled: yes

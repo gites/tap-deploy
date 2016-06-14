@@ -1,0 +1,206 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "spec": {
+                "volumes": null,
+                "containers": [
+                  {
+                    "name": "arangodb22",
+                    "image": "$repository_uri/frodenas/arangodb",
+                    "ports": [
+                      {
+                        "containerPort": 8529,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "ARANGODB_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-arangodb22-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "ARANGODB_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-arangodb22-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      { "name": "ARANGODB_DBNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "name": "$short_instance_id-arangodb-credentials",
+                            "key": "dbname"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "resources": {},
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "name": "tcp",
+                "protocol": "TCP",
+                "port": 8529,
+                "targetPort": 0,
+                "nodePort": 0
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-arangodb22-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "username": "$base64-$random1",
+            "password": "$base64-$random2",
+            "dbname": "$base64-$random2"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services": [{
+    "name": "arangodb-22",
+    "description": "ArangoDB 2.2 service for application development and testing",
+    "metadata":[
+      {"key":"displayName","value": "ArangoDB 2.2"},
+      {"key":"imageUrl","value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACEFBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3SntjWpAAAAr3RSTlMAAAECAwQFBwgJCgsMDQ4PEBIVFhcYGRweISIjJCUmJygrLi8wMTM0Njc5Ozw9Pj9AQURGR0hLTE1PUlNUV1haXF9gYmNkZmdoaWtsbW5vcHFyc3R1d3l6e3x9foKGh4mLjI2Oj5CTlpibn6KjpKanqKqrrK2ur7CxsrO0t7m8vsDCw8TIy8zN0NHS09TV1tjZ2tvc3uDh4uPk5+nq6+zt7u/w8fL09fb4+fr7/P3+XDREAQAAA6VJREFUeF6l1/tXVEUAwPGJfYrGS820RSjIF2EQgfnKzAhh0yWEkjSs1jAwLBFNrHTDENtI0lVgQ7dY2NbdRb7/Yp772Jczd7fj96c5c87n7Jm7596ZES88R1lY5GRr+nJiYRUe/TrY5hQ5FcIlh0Nk+svn/B/4pRtoLT74exWA4NaisWcWCJ/a5ngKbLXHgkB0Z5F44zysnHJl1vBeFP6pKQrbf4F4i8iuJgy/u4vBPlhtE7m9GoOBIvD6Jfhc5HcEEq8Uxl/AXdczuGQChgviF2OwTzzbG5BcXwh/CH/ahKRJ+LQQnoKPhKzDMGuzxrUQWyfF7iVotMafwPdC3rfwlTWehP0K/A7MlVjhaoitUWB3DF6zwj1wUagahz4rHID3lbgTAha4IgUblfhlSJWp8btwW6ibhn1qPAwDFvgMDKnxPLyZBmsPDQVuB4YOrU3jZnigxDWw7DSo6+QieosnXeZcHDwq7IXLht0cJFNws6F/hg4V/gF8uvU8BO72N9U3f3YfeOjRcS+MKrBjCeo1W3kfHh+za8BxIgn3KzX8OkRscrwNFm0aGIF4szB76zGMaNj2COrl+Dj8qIGdwMHcV5mdmh6DLjm+CCc0cBnGRXY/mU/yY/hOjudgh7bilD7I1AApbdU7YFaKq2BF+7AfhN9Ebn8Y63AmoEqGW2FaA37w5+GvzalJaJXhPhgxl3wkD39gLvob6JPhYfN5BaAtD7dBQMPHYViGJ+BtE+/Jw3tM3AoTMjwPtRq4BO15uB0uaXgrhGU4BmXmazuYhwfhjIYr4V8ZBnSwH2by8Iz5RbYBCuzSQHkCdufY3ZAo17BLgaOwQQcX4HoOvg4X9NEGiMpwEBp1ULea+8jaYbVOx40QlOFR8BrgHCT3pu3eJJwzxl4YleFuuGKAddPw5LS+76w5/QSmzZ3zCnTLcB3Eywy9KQQs+A80HfAvAKFNhi2LQ50MixnoEEYbb5LpZnoX6YAZIcV9EHKY2t4ZRi/caTetIwR9clwRBZ9I52gZGLsxNtDiEOl8EK2QY9EPy1uEui3L0C8U2H0PpkqVtnQK7rlVWOxKwbhdYe3jkNollFh0A9fkv116DegWFlicBaaqJbZ6CjgrLHGJH4j1OvOoszcG+EvUWM+bBOa85Vm0wjsHJL1FnLe33wFIXPU1VD2FVQ2+qwmAO9tFEVg4eyIYxTGK9DiLvd2Udk2S3WRXqQGtsZnn6PlbkRVWIrfOH/UoL2XP0X/IXL8zaEdvhgAAAABJRU5ErkJggg=="},
+      {"key":"longDescription","value": "A ArangoDB 2.2 service for development and testing running inside a Docker container"},
+      {"key":"providerDisplayName","value": "Ferran Rodenas"},
+      {"key":"documentationUrl","value": "https://github.com/frodenas/docker-arangodb/blob/master/README.md"},
+      {"key":"supportUrl","value": "https://github.com/frodenas/docker-arangodb"}
+    ],
+    "bindable": true,
+    "tags": [
+      "arangodb22",
+      "arangodb",
+      "nosql",
+      "k8s"
+    ],
+    "plans": [
+      {
+        "name": "free",
+        "description": "free",
+        "cost": "free"
+      }
+    ]
+  }]
+}

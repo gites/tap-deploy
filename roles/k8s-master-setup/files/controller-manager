@@ -1,0 +1,1 @@
+KUBE_CONTROLLER_MANAGER_ARGS="--service-sync-period=5m --node-sync-period=2m --kubeconfig=/etc/kubernetes/kubeconfig --service-account-private-key-file=/etc/kubernetes/ssl/service-account.key --root-ca-file=/etc/kubernetes/ssl/ca.crt --leader-elect"

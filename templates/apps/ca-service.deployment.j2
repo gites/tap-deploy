@@ -1,0 +1,56 @@
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  name: "ca"
+  namespace: kube-system
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        id: "ca"
+    spec:
+      containers:
+        - name: "ca"
+          image: "{{ repository_uri }}/tap-ca:{{ tap_version }}"
+          ports:
+            - containerPort: 80
+              protocol: "TCP"
+          resources:
+            limits:
+              memory: "{{ ca_service_memory_limit }}"
+            requests:
+              memory: "{{ ca_service_memory_limit }}"
+          env:
+            - name: USER
+              valueFrom:
+                configMapKeyRef:
+                  name: ca
+                  key: user
+            - name: PASS
+              valueFrom:
+                configMapKeyRef:
+                  name: ca
+                  key: pass
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ca
+                  key: log-level
+          imagePullPolicy: "Always"
+          volumeMounts:
+          - mountPath: /opt/app/data
+            name: ca-service-storage
+      volumes:
+        - name: ca-service-storage
+          rbd:
+            monitors: [{% for item in groups["mons"]%}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]
+            pool: rbd
+            image: ca-service
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+      restartPolicy: "Always"
+      dnsPolicy: "ClusterFirst"

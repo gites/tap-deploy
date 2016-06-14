@@ -1,0 +1,93 @@
+apiVersion: extensions/v1beta1
+kind: Job
+metadata:
+  name: "template-repository-backup"
+spec:
+  template:
+    metadata:
+      labels:
+        backup: template-repository-backup
+    spec:
+      containers:
+        - name: "template-repository-backup"
+          image: "{{ repository_uri }}/tap-template-repository:{{ tap_version }}"
+          command: ["uptime"]
+          volumeMounts:
+            - name: "template-repository-ca-pem-volume"
+              mountPath: "/etc/ssl/certs/ca.pem"
+              subPath: ca.pem
+              readOnly: true
+            - name: "template-repository-ca-certificates-crt-volume"
+              mountPath: "/etc/ssl/certs/ca-certificates.crt"
+              subPath: ca-certificates.crt
+              readOnly: true
+            - name: "template-repository-hashed-ca-volume"
+              mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+              subPath: "{{ ca_cert.json['hash'] }}.0"
+              readOnly: true
+          ports:
+            - containerPort: 80
+              protocol: "TCP"
+          resources:
+            limits:
+              # cpu: 100m
+              memory: 256Mi
+            requests:
+              # cpu: 50m
+              memory: 128Mi
+          volumeMounts:
+            - mountPath: /opt/app/catalogData
+              name: template-repository-backup
+          env:
+            - name: "TEMPLATE_REPOSITORY_PORT"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "port"
+            - name: "TEMPLATE_REPOSITORY_USER"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "user"
+            - name: "TEMPLATE_REPOSITORY_PASS"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "pass"
+            - name: "DOMAIN"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "domain"
+            - name: "BROKER_LOG_LEVEL"
+              valueFrom:
+                configMapKeyRef:
+                  name: "template-repository"
+                  key: "broker-log-level"
+            - name: "NGINX_SSL_IMAGE_NAME"
+              value: "tap-nginx-dyn-stream:{{ tap_version }}"
+          imagePullPolicy: "Always"
+      restartPolicy: "Never"
+      volumes:
+        - name: template-repository-backup
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: template-repository-backup
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+        - name: "template-repository-ca-pem-volume"
+          secret:
+            secretName: "platform-ca-root-cert"
+        - name: "template-repository-ca-certificates-crt-volume"
+          secret:
+            secretName: "platform-ca-roots-bundle"
+        - name: "template-repository-hashed-ca-volume"
+          secret:
+            secretName: "platform-ca-root-cert-hashed"
+        - name: "template-repository-certkey-volume"
+          secret:
+            secretName: "template-repository-certkey"

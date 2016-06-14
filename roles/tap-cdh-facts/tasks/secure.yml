@@ -1,0 +1,145 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: get CDH configurations
+  cdh_conf:
+    host: 'localhost'
+    user: 'admin'
+    pass: "{{ cdh_admin_password }}"
+  register: config_map
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: get Krb cacert
+  slurp:
+    src: '/etc/krb5.cacert.pem'
+  register: krbcacert_value
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: set Krb cacert
+  set_fact:
+    krbcacert: '{{ krbcacert_value.content }}'
+
+- name: set User related facts
+  set_fact:
+    hgm_principal: 'hgm/sys'
+    hadoop_warehouse_principal: 'hive/sys'
+    sentry_principal: 'sentry'
+    hdfs_principal: 'authgateway/sys'
+    hive_principal: 'hive/sys'
+    broker_principal: 'broker/sys'
+    tap_principal: 'tap/sys'
+    hdfs_superuser: 'hdfs'
+    hdfs_hiveuser: 'hive'
+
+- name: set Empty Kerberos templates
+  set_fact:
+    krb_kdc: '{{ groups["cdh-master"] | join(":") }}'
+    krb_realm: '{{ config_map | cloudera("SECURITY_REALM")}}'
+    krb_enabled: '{{ kerberos_enabled }}'
+
+- name: set Cloudera Manager facts
+  set_fact:
+    cloudera_manager_host: '{{ groups["cdh-manager"][0] }}'
+    cloudera_user: 'admin'
+    cloudera_password: '{{ cdh_admin_password }}'
+    cloudera_port: '7183'
+
+- name: set Host related facts
+  set_fact:
+    oozie_server: '{{ config_map | role_host("OOZIE", "OOZIE-OOZIE_SERVER") }}'
+    sqoop_metastore: '{{ config_map | role_ip("SQOOP_METASTORE", "SQOOP-SQOOP_METASTORE") }}'
+    hgm_hostname: '{{ config_map | role_host("HADOOPGROUPSMAPPING", "HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER") }}'
+    hgm_port: '{{ config_map | role_prop("HADOOPGROUPSMAPPING", "HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER", "rest_port") }}'
+    hgm_password: '{{ config_map | role_prop("HADOOPGROUPSMAPPING", "HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER", "basic_auth_pass") }}'
+    hgm_user: '{{ config_map | role_prop("HADOOPGROUPSMAPPING", "HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER", "basic_auth_user") }}'
+    hive_host: '{{ config_map | role_host("HIVE", "HIVE-HIVESERVER2") }}'
+    hive_port: '{{ config_map | role_prop("HIVE", "HIVE-HIVESERVER2", "hs2_thrift_address_port") }}'
+    hive_server_thrift_host: '{{ config_map | role_host("HIVE", "HIVE-HIVESERVER2") }}'
+    hive_server_thrift_port: '{{ config_map | role_prop("HIVE", "HIVE-HIVESERVER2", "hs2_thrift_address_port") }}'
+    sentry_host: '{{ config_map | role_host("SENTRY", "SENTRY-SENTRY_SERVER") }}'
+    sentry_port: '{{ config_map | role_prop("SENTRY", "SENTRY-SENTRY_SERVER", "sentry_service_server_rpc_port") }}'
+    auth_gateway_sys_user: 'broker'
+    auth_gateway_zk_user: 'authgateway'
+    auth_gateway_profiles: 'cloud,krb-warehouse-auth-gateway,krb-zookeeper-auth-gateway,krb-hdfs-auth-gateway,krb-hgm-auth-gateway,krb-hbase-auth-gateway,yarn-auth-gateway'
+    broker_profiles: 'kerberos'
+    impala_availability: 'false'
+    kafka_host: '{{ config_map | role_ip("KAFKA", "KAFKA_BROKER-1") }}'
+    kafka_port: '{{ config_map | role_prop("KAFKA", "KAFKA_BROKER-1", "port" ) }}'
+
+- name: set Host complex facts
+  set_fact:
+    zookeeper_cluster_host: '{{ config_map | zookeeper_cluster("ZOOKEEPER", "2181") }}'
+    impala_jdbc: 'jdbc:hive2://{{ hive_host }}:{{ hive_port }}/default;principal=hive/{{ hive_host }}@{{ krb_realm }};auth=kerberos;ssl=true;sslTrustStore={{ trusted_store_path }}{{ trusted_store_file }};trustStorePassword={{ store_pass }};'
+    hive_jdbc: 'jdbc:hive2://{{ hive_host }}:{{ hive_port }}/default;principal=hive/{{ hive_host }}@{{ krb_realm }};auth=kerberos;ssl=true;sslTrustStore={{ trusted_store_path }}{{ trusted_store_file }};trustStorePassword={{ store_pass }};'
+    hgm_host: 'http://{{ hgm_hostname }}:{{ hgm_port }}'
+    kafka_uri: '{{ kafka_host }}:{{ kafka_port }}'
+
+- name: create keytab for hgm user
+  keytab:
+    usr: 'hgm/sys'
+    dir: '/home/root'
+  register: hgm_keytab
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: set hgm keytab fact
+  set_fact:
+    hgm_keytab_value: '{{ hgm_keytab.base64 }}'
+
+- name: create keytab for authgateway user
+  keytab:
+    usr: 'authgateway/sys'
+    dir: '/home/root'
+  register: authgateway_keytab
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: set authgateway keytab fact
+  set_fact:
+    authgateway_keytab_value: '{{ authgateway_keytab.base64 }}'
+
+- name: create keytab for hive user
+  keytab:
+    usr: 'hive/sys'
+    dir: '/home/root'
+  register: hive_keytab
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: set hive keytab fact
+  set_fact:
+    hive_keytab_value: '{{ hive_keytab.base64 }}'
+
+- name: create keytab for hdfs user
+  keytab:
+    usr: 'hdfs'
+    dir: '/home/root'
+  register: hdfs_keytab
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: set hdfs keytab fact
+  set_fact:
+    hdfs_keytab_value: '{{ hdfs_keytab.base64 }}'
+
+- name: create keytab for broker user
+  keytab:
+    usr: 'broker/sys'
+    dir: '/home/root'
+  register: broker_keytab
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: set broker keytab fact
+  set_fact:
+    broker_keytab_value: '{{ broker_keytab.base64 }}'

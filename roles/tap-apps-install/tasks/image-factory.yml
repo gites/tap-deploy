@@ -1,0 +1,331 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: IMAGE-FACTORY Get CertKey
+  uri:
+    url: "http://{{ ca_service_clusterip }}/api/v1/certkey/image-factory"
+    method: GET
+    user: "{{ ca_service.user }}"
+    password: "{{ hostvars[groups['k8s-master'][0]].passwords.ca_service.pass }}"
+    force_basic_auth: yes
+    status_code: 200
+    return_content: yes
+    timeout: 60
+  register: certkey
+
+- name: IMAGE-FACTORY create cert and key secret for nginx
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Secret"
+      metadata:
+        name: "image-factory-certkey"
+      data:
+        ssl.crt: "{{ certkey.json['cert'] | b64encode }}"
+        ssl.key: "{{ certkey.json['key'] | b64encode }}"
+
+- name: IMAGE-FACTORY Create private key for tap-image-factory
+  command: openssl genrsa -out /etc/kubernetes-ca/key/image-factory.key 2048
+  args:
+    creates: /etc/kubernetes-ca/key/image-factory.key
+
+- name: IMAGE-FACTORY Create certificate signing request for tap-image-factory
+  command: openssl req -new -key /etc/kubernetes-ca/key/image-factory.key -out /etc/kubernetes-ca/csr/image-factory.csr -subj "/CN=image-factory"
+  args:
+    creates: /etc/kubernetes-ca/csr/image-factory.csr
+
+- name: IMAGE-FACTORY Create public certificate for tap-image-factory
+  command: >
+    openssl x509 -req -in /etc/kubernetes-ca/csr/image-factory.csr -CA /etc/kubernetes-ca/ca/ca.crt -CAkey /etc/kubernetes-ca/ca/ca.key
+    -CAcreateserial -out /etc/kubernetes-ca/crt/image-factory.crt -days 730
+  args:
+    creates: /etc/kubernetes-ca/crt/image-factory.crt
+
+- name: IMAGE-FACTORY Get generated certificates and key
+  slurp:
+    src: "{{ item }}"
+  with_items:
+    - /etc/kubernetes-ca/ca/ca.crt
+    - /etc/kubernetes-ca/crt/image-factory.crt
+    - /etc/kubernetes-ca/key/image-factory.key
+  register: certs_base64
+
+- name: IMAGE-FACTORY Convert slurp certs list to dict
+  set_fact:
+    certs_base64_dict: "{{ certs_base64_dict|default({}) | combine( {item.item|basename: item.content} ) }}"
+  with_items: "{{ certs_base64.results }}"
+
+- name: IMAGE-FACTORY create secret for kube-ca certs
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Secret"
+      metadata:
+        name: "image-factory-kube-ca"
+      data:
+        ca.crt: "{{ certs_base64_dict['ca.crt'] }}"
+        image-factory.crt: "{{ certs_base64_dict['image-factory.crt'] }}"
+        image-factory.key: "{{ certs_base64_dict['image-factory.key'] }}"
+
+- name: IMAGE-FACTORY Create image-factory Service
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        labels:
+          name: image-factory
+        name: image-factory
+      spec:
+        ports:
+          - port: 80
+            protocol: "TCP"
+            name: "rest"
+          - port: 443
+            protocol: "TCP"
+            name: "rest-ssl"
+        selector:
+          app: image-factory
+        type: ClusterIP
+    state: present
+
+- name: IMAGE-FACTORY Create image-factory ConfigMap instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "ConfigMap"
+      apiVersion: "v1"
+      metadata:
+        name: "image-factory"
+        labels:
+          app: "image-factory"
+      data:
+        hub-address: "{{ repository_uri }}"
+        endpoint: "image-factory:443"
+        queue-name: "image-factory"
+        kubernetes-service-name: "IMAGE_FACTORY"
+        host: "image-factory"
+        port: "80"
+        ssl-port: "443"
+        user: "admin"
+        pass: "password"
+        kube-ca-cert-path: "/etc/kubernetes-ca/ca.crt"
+        kube-ca-client-cert-path: "/etc/kubernetes-ca/image-factory.crt"
+        kube-ca-client-key-path: "/etc/kubernetes-ca/image-factory.key"
+        image-ready-max-retries: "20"
+        image-ready-back-off-delay-secs: "5"
+
+- name: IMAGE-FACTORY Create image-factory deployment instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      metadata:
+        name: image-factory
+        labels:
+          tap_app_type: CORE
+      spec:
+        replicas: 1
+        template:
+          metadata:
+            labels:
+              app: image-factory
+          spec:
+            volumes:
+              - name: docker-sock
+                hostPath:
+                  path: /var/run/docker.sock
+              - name: "image-factory-ca-pem-volume"
+                secret:
+                  secretName: "platform-ca-root-cert"
+              - name: "image-factory-ca-certificates-crt-volume"
+                secret:
+                  secretName: "platform-ca-roots-bundle"
+              - name: "image-factory-hashed-ca-volume"
+                secret:
+                  secretName: "platform-ca-root-cert-hashed"
+              - name: "image-factory-certkey-volume"
+                secret:
+                  secretName: "catalog-certkey"
+              - name: "image-factory-kube-ca-volume"
+                secret:
+                  secretName: "image-factory-kube-ca"
+            containers:
+              - name: image-factory
+                image: "{{ repository_uri }}/tap-image-factory:{{ tap_version }}"
+                volumeMounts:
+                  - name: "image-factory-ca-pem-volume"
+                    mountPath: "/etc/ssl/certs/ca.pem"
+                    subPath: ca.pem
+                    readOnly: true
+                  - name: "image-factory-ca-certificates-crt-volume"
+                    mountPath: "/etc/ssl/certs/ca-certificates.crt"
+                    subPath: ca-certificates.crt
+                    readOnly: true
+                  - name: "image-factory-hashed-ca-volume"
+                    mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+                    subPath: "{{ ca_cert.json['hash'] }}.0"
+                    readOnly: true
+                  - name: docker-sock
+                    mountPath: /var/run/docker.sock
+                  - name: "image-factory-kube-ca-volume"
+                    mountPath: "/etc/kubernetes-ca"
+                imagePullPolicy: "Always"
+                ports:
+                  - containerPort: 80
+                    protocol: TCP
+                resources:
+                  limits:
+                    memory: "{{ image_factory_memory_limit }}"
+                  requests:
+                    memory: "{{ image_factory_memory_limit }}"
+                env:
+                  - name: PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: port
+                  - name: IMAGE_FACTORY_USER
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: user
+                  - name: IMAGE_FACTORY_PASS
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: pass
+                  - name: BLOB_STORE_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        name: blob-store
+                        key: ssl-port
+                  - name: BLOB_STORE_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        name: blob-store
+                        key: host
+                  - name: BLOB_STORE_USER
+                    valueFrom:
+                      configMapKeyRef:
+                        name: blob-store
+                        key: user
+                  - name: BLOB_STORE_PASS
+                    valueFrom:
+                      configMapKeyRef:
+                        name: blob-store
+                        key: pass
+                  - name: CATALOG_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        name: catalog
+                        key: ssl-port
+                  - name: CATALOG_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        name: catalog
+                        key: host
+                  - name: HUB_ADDRESS
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: hub-address
+                  - name: CATALOG_USER
+                    valueFrom:
+                      configMapKeyRef:
+                        name: catalog
+                        key: user
+                  - name: CATALOG_PASS
+                    valueFrom:
+                      configMapKeyRef:
+                        name: catalog
+                        key: pass
+                  - name: QUEUE_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        name: queue
+                        key: port
+                  - name: QUEUE_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        name: queue
+                        key: host
+                  - name: QUEUE_USER
+                    valueFrom:
+                      configMapKeyRef:
+                        name: queue
+                        key: user
+                  - name: QUEUE_PASS
+                    valueFrom:
+                      configMapKeyRef:
+                        name: queue
+                        key: password
+                  - name: QUEUE_NAME
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: queue-name
+                  - name: KUBE_CA_CERT_PATH
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: kube-ca-cert-path
+                  - name: KUBE_CA_CLIENT_CERT_PATH
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: kube-ca-client-cert-path
+                  - name: KUBE_CA_CLIENT_KEY_PATH
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: kube-ca-client-key-path
+                  - name: IMAGE_READY_MAX_RETRIES
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: image-ready-max-retries
+                  - name: IMAGE_READY_BACK_OFF_DELAY_SECS
+                    valueFrom:
+                      configMapKeyRef:
+                        name: image-factory
+                        key: image-ready-back-off-delay-secs
+              - name: "nginx-ssl"
+                image: "{{ repository_uri }}/tap-nginx-dyn-stream:{{ tap_version }}"
+                volumeMounts:
+                  - name: "image-factory-certkey-volume"
+                    mountPath: "/etc/nginx/ssl"
+                ports:
+                  - containerPort: 443
+                    protocol: "TCP"
+                imagePullPolicy: "Always"
+              - name: "sleep-forever"
+                image: "localhost:5000/kubernetes/pause:latest"
+                resources:
+                  limits:
+                    memory: "{{ host_docker_reserved_memory_limit }}"
+                imagePullPolicy: "IfNotPresent"
+    state: present
+

@@ -1,0 +1,11 @@
+[desktop]
+redirect_whitelist=^\/.*$,^{{ external_protocol }}:\/\/.*.{{ tap_domain_name }}.*$
+[[oauthtrustedanalytics]]
+consumer_key=hue
+consumer_secret={{ hostvars[groups['k8s-master'][0]].passwords.uaa.hue_secret }}
+access_token_url=http://uaa:8080/oauth/token
+authenticate_token_url={{ external_protocol }}://uaa.{{ tap_domain_name }}/oauth/authorize?response_type=code&client_id=hue
+validate_ssl=no
+root_group=hue.admin
+[[auth]]
+backend=liboauthtrustedanalytics.backend.OAuthTrustedAnalyticsBackend

@@ -1,0 +1,663 @@
+{
+  "broker_name": "gearpump-broker",
+  "template": {
+    "body": [
+      {
+      "componentType": "broker",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "gearpump-$short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "short_instance_id": "$short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "managed_by": "TAP",
+                "short_instance_id": "$short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "short_instance_id": "$short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "spec": {
+                "volumes": [
+                  {
+                    "name": "yarn-config-volume",
+                    "configMap": {
+                      "name": "yarn-conf"
+                    }
+                  },
+                  {
+                    "name": "krb-config-volume",
+                    "configMap": {
+                      "name": "kerberos-config"
+                    }
+                  },
+                  {
+                    "name": "cacert-volume",
+                    "secret": {
+                      "secretName": "cdh-ca",
+                      "items": [
+                        {
+                          "key": "cacerts",
+                          "path": "cacerts.jks"
+                        }
+                      ]
+                    }
+                  }
+                ],
+                "containers": [
+                  {
+                    "name": "gearpump-broker",
+                    "image": "$repository_uri/gearpump-broker:$tap_version",
+                    "livenessProbe": {
+                      "httpGet": {
+                        "path": "/api/healthz",
+                        "port": 80,
+                        "scheme": "HTTP"
+                      },
+                      "initialDelaySeconds": 60,
+                      "timeoutSeconds": 5,
+                      "successThreshold": 1,
+                      "failureThreshold": 5
+                    },
+                    "volumeMounts": [
+                      {
+                        "mountPath": "/etc/hadoop",
+                        "name": "yarn-config-volume",
+                        "readOnly": true
+                      },
+                      {
+                        "mountPath": "/etc/kerberos",
+                        "name": "krb-config-volume",
+                        "readOnly": true
+                      },
+                      {
+                        "mountPath": "/etc/ssl/certs/java/",
+                        "name": "cacert-volume",
+                        "readOnly": true
+                      }
+                    ],
+                    "ports": [
+                      {
+                        "containerPort": 80,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "TRUSTED_STORE_PATH",
+                        "value": "/etc/ssl/certs/java/"
+                      },
+                      {
+                        "name": "TRUSTED_STORE_FILE",
+                        "value": "cacerts.jks"
+                      },
+                      {
+                        "name": "TRUSTED_STORE_PASS",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "name": "cdh-ca",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "SERVER_PORT",
+                        "value": "80"
+                      },
+                      {
+                        "name": "USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "name": "$short_instance_id-broker-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "USER_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "name": "$short_instance_id-broker-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+
+                      { "name": "MANAGED_BY", "value": "TAP" },
+
+                      { "name": "GEARPUMP_PACK_VERSION", "value": "2.11-0.8.0" },
+                      { "name": "WORKERS_MEMORY_LIMIT", "value": "2048" },
+
+                      { "name": "HDFS_URI", "value": "/org/$org/jars" },
+                      { "name": "HDFS_DIR", "value": "/user/gearpump" },
+                      { "name": "HADOOP_CONF_DIR", "value": "/etc/hadoop" },
+                      { "name": "HADOOP_HOME", "value": "/etc/hadoop" },
+                      {
+                        "name": "HADOOP_USER_NAME",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "broker-config", "key": "broker.system.user" }
+                        }
+                      },
+
+                      { "name": "TAP_API_ENDPOINT", "value": "$tap_protocol://api.$domain_name" },
+
+                      { "name": "GEARPUMP_UI_NAME", "value": "gearpumpdashboard" },
+                      { "name": "GEARPUMP_UI_ORG", "value": "trustedanalytics" },
+                      { "name": "GEARPUMP_UI_SPACE", "value": "platform" },
+
+                      { "name": "GEARPUMP_UI_CATALOG_SERVICE_ID", "value": "" },
+                      { "name": "GEARPUMP_UI_CATALOG_SERVICE_PLAN_ID", "value": "" },
+
+                      { "name": "CF_CATALOG_SERVICENAME", "value": "gearpump" },
+                      { "name": "CF_CATALOG_SERVICEID", "value": "gearpump" },
+                      { "name": "BASE_GUID", "value": "gearpump" },
+
+                      {
+                        "name": "KRB_KDC",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "kerberos-config", "key": "krb.kdc" }
+                        }
+                      },
+                      {
+                        "name": "KRB_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "name": "broker-passwords",
+                            "key": "broker.kerberos.user.password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "KRB_REALM",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "kerberos-config", "key": "krb.realm" }
+                        }
+                      },
+                      {
+                        "name": "KRB_USER",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "broker-config", "key": "broker.system.user" }
+                        }
+                      },
+                      {
+                        "name": "KRB_ENABLED",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "kerberos-config", "key": "krb.enabled" }
+                        }
+                      },
+                      { "name": "JAVA_SECURITY_KRB5_CONF", "value": "/etc/kerberos/krb5.conf" },
+                      { "name": "KRB5_CONFIG", "value": "/etc/kerberos/krb5.conf" },
+
+                      {
+                        "name": "ZK_CLUSTER",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "cloudera-config", "key": "zookeeper.cluster.host" }
+                        }
+                      },
+                      {
+                        "name": "ZK_NODE", "value": "/broker/gearpump"
+                      },
+
+                      {
+                        "name": "VCAP_SERVICES_SSO_CREDENTIALS_APIENDPOINT",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "sso", "key": "api-endpoint" }
+                        }
+                      },
+                      {
+                        "name": "VCAP_SERVICES_SSO_CREDENTIALS_UAAURI",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "sso", "key": "uaa-uri" }
+                        }
+                      },
+                      {
+                        "name": "VCAP_SERVICES_SSO_CREDENTIALS_CLIENTID",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "sso", "key": "client-id" }
+                        }
+                      },
+                      {
+                        "name": "VCAP_SERVICES_SSO_CREDENTIALS_CLIENTSECRET",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "sso", "key": "client-secret" }
+                        }
+                      },
+                      {
+                        "name": "VCAP_SERVICES_SSO_CREDENTIALS_TOKENURI",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "sso", "key": "token-uri" }
+                        }
+                      },
+                      {
+                        "name": "VCAP_SERVICES_SSO_CREDENTIALS_AUTHORIZATIONURI",
+                        "valueFrom": {
+                          "configMapKeyRef": { "name": "sso", "key": "authorization-uri" }
+                        }
+                      },
+
+                      { "name": "SPRING_PROFILES_ACTIVE", "value": "cloud" }
+                    ],
+                    "resources": {},
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "gearpump-$short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "short_instance_id": "$short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "ClusterIP",
+            "ports": [
+              {
+                "name": "broker",
+                "protocol": "TCP",
+                "port": 80
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "gearpump-$short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "short_instance_id": "$short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-broker-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "short_instance_id": "$short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "password": "$base64-$random1",
+            "username": "dXNlcg=="
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": {
+      "provision": {
+        "kind": "Pod",
+        "apiVersion": "v1",
+        "metadata": {
+          "name": "$short_instance_id-provision-$random_dns1",
+          "creationTimestamp": null,
+          "labels": {
+            "managed_by": "TAP",
+            "instance_id": "$instance_id"
+          }
+        },
+        "spec": {
+          "volumes": null,
+          "containers": [
+            {
+              "name": "$short_instance_id-provision",
+              "image": "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+              "env": [
+                {
+                  "name": "ACTION",
+                  "value": "CREATE_AND_BIND"
+                },
+                {
+                  "name": "BROKER_SERVICE_NAME",
+                  "value": "GEARPUMP_$broker_short_instance_id"
+                },
+                {
+                  "name": "CREATE_BODY",
+                  "value": "{\"plan_id\": \"$plan_id\", \"service_id\": \"$offering_id\", \"organization_guid\": \"$org\", \"space_guid\":\"$space\"}"
+                },
+                {
+                  "name": "CREATE_EXPECTED_CODE",
+                  "value": "201"
+                },
+                {
+                  "name": "CREATE_URL",
+                  "value": "/v2/service_instances/$instance_id"
+                },
+                {
+                  "name": "BIND_BODY",
+                  "value": "{\"plan_id\": \"$plan_id\", \"service_id\": \"$offering_id\", \"organization_guid\": \"$org\", \"space_guid\":\"$space\", \"app_guid\": \"fake_provision_guid\"}"
+                },
+                {
+                  "name": "BIND_EXPECTED_CODE",
+                  "value": "201"
+                },
+                {
+                  "name": "BIND_URL",
+                  "value": "/v2/service_instances/$instance_id/service_bindings/$short_instance_idfake_provision_guid"
+                },
+                {
+                  "name": "UNBIND_EXPECTED_CODE",
+                  "value": "200"
+                },
+                {
+                  "name": "UNBIND_URL",
+                  "value": "/v2/service_instances/$instance_id/service_bindings/$short_instance_idfake_provision_guid?service_id=$offering_id&plan_id=$plan_id"
+                },
+                {
+                  "name": "BROKER_USERNAME",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "Name": "$broker_short_instance_id-broker-credentials",
+                      "key": "username"
+                    }
+                  }
+                },
+                {
+                  "name": "BROKER_PASSWORD",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "Name": "$broker_short_instance_id-broker-credentials",
+                      "key": "password"
+                    }
+                  }
+                }
+              ],
+              "resources": {},
+              "imagePullPolicy": "IfNotPresent"
+            }
+          ],
+          "restartPolicy": "Never",
+          "dnsPolicy": "ClusterFirst",
+          "serviceAccountName": ""
+        }
+      },
+      "bind": {
+        "kind": "Pod",
+        "apiVersion": "v1",
+        "metadata": {
+          "name": "$short_instance_id-bind-$random_dns1",
+          "creationTimestamp": null,
+          "labels": {
+            "managed_by": "TAP",
+            "instance_id": "$instance_id"
+          }
+        },
+        "spec": {
+          "volumes": null,
+          "containers": [
+            {
+              "name": "$short_instance_id-bind",
+              "image": "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+              "env": [
+                {
+                  "name": "ACTION",
+                  "value": "BIND"
+                },
+                {
+                  "name": "BROKER_SERVICE_NAME",
+                  "value": "GEARPUMP_$broker_short_instance_id"
+                },
+                {
+                  "name": "BODY",
+                  "value": "{\"plan_id\": \"$plan_id\", \"service_id\": \"$offering_id\", \"organization_guid\": \"$org\", \"space_guid\":\"$space\", \"app_guid\": \"$binded_instance_id\"}"
+                },
+                {
+                  "name": "EXPECTED_CODE",
+                  "value": "201"
+                },
+                {
+                  "name": "URL",
+                  "value": "/v2/service_instances/$instance_id/service_bindings/$short_instance_id$binded_instance_id"
+                },
+                {
+                  "name": "BROKER_USERNAME",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "Name": "$broker_short_instance_id-broker-credentials",
+                      "key": "username"
+                    }
+                  }
+                },
+                {
+                  "name": "BROKER_PASSWORD",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "Name": "$broker_short_instance_id-broker-credentials",
+                      "key": "password"
+                    }
+                  }
+                }
+              ],
+              "resources": {},
+              "imagePullPolicy": "IfNotPresent"
+            }
+          ],
+          "restartPolicy": "Never",
+          "dnsPolicy": "ClusterFirst",
+          "serviceAccountName": ""
+        }
+      },
+      "unbind": {
+        "kind": "Pod",
+        "apiVersion": "v1",
+        "metadata": {
+          "name": "$short_instance_id-unbind-$random_dns1",
+          "creationTimestamp": null,
+          "labels": {
+            "managed_by": "TAP",
+            "instance_id": "$instance_id"
+          }
+        },
+        "spec": {
+          "volumes": null,
+          "containers": [
+            {
+              "name": "$short_instance_id-unbind",
+              "image": "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+              "env": [
+                {
+                  "name": "ACTION",
+                  "value": "UNBIND"
+                },
+                {
+                  "name": "BROKER_SERVICE_NAME",
+                  "value": "GEARPUMP_$broker_short_instance_id"
+                },
+                {
+                  "name": "EXPECTED_CODE",
+                  "value": "200"
+                },
+                {
+                  "name": "URL",
+                  "value": "/v2/service_instances/$instance_id/service_bindings/$short_instance_id$binded_instance_id?service_id=$offering_id&plan_id=$plan_id"
+                },
+                {
+                  "name": "BROKER_USERNAME",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "Name": "$broker_short_instance_id-broker-credentials",
+                      "key": "username"
+                    }
+                  }
+                },
+                {
+                  "name": "BROKER_PASSWORD",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "Name": "$broker_short_instance_id-broker-credentials",
+                      "key": "password"
+                    }
+                  }
+                }
+              ],
+              "resources": {},
+              "imagePullPolicy": "IfNotPresent"
+            }
+          ],
+          "restartPolicy": "Never",
+          "dnsPolicy": "ClusterFirst",
+          "serviceAccountName": ""
+        }
+      },
+      "deprovision": {
+        "kind": "Pod",
+        "apiVersion": "v1",
+        "metadata": {
+          "name": "$short_instance_id-deprovision-$random_dns1",
+          "creationTimestamp": null,
+          "labels": {
+            "managed_by": "TAP",
+            "instance_id": "$instance_id"
+          }
+        },
+        "spec": {
+          "volumes": null,
+          "containers": [
+            {
+              "name": "$short_instance_id-deprovision",
+              "image": "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+              "env": [
+                {
+                  "name": "ACTION",
+                  "value": "DELETE"
+                },
+                {
+                  "name": "BROKER_SERVICE_NAME",
+                  "value": "GEARPUMP_$broker_short_instance_id"
+                },
+                {
+                  "name": "EXPECTED_CODE",
+                  "value": "200"
+                },
+                {
+                  "name": "URL",
+                  "value": "/v2/service_instances/$instance_id?service_id=$offering_id&plan_id=$plan_id"
+                },
+                {
+                  "name": "BROKER_USERNAME",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "Name": "$broker_short_instance_id-broker-credentials",
+                      "key": "username"
+                    }
+                  }
+                },
+                {
+                  "name": "BROKER_PASSWORD",
+                  "valueFrom": {
+                    "secretKeyRef": {
+                      "Name": "$broker_short_instance_id-broker-credentials",
+                      "key": "password"
+                    }
+                  }
+                }
+              ],
+              "resources": {},
+              "imagePullPolicy": "IfNotPresent"
+            }
+          ],
+          "restartPolicy": "Never",
+          "dnsPolicy": "ClusterFirst",
+          "serviceAccountName": ""
+        }
+      }
+    }
+  },
+  "services": [
+    {
+      "name": "gearpump-080",
+      "description": "Modern big data real-time streaming engine.",
+      "metadata": [
+        {
+          "key": "source_offering_id",
+          "value": "gearpump"
+        },
+        {
+          "key": "source_plan_id-small",
+          "value": "gearpump-small"
+        },
+        {
+          "key": "source_plan_id-medium",
+          "value": "gearpump-medium"
+        }
+      ],
+      "bindable": true,
+      "tags": [
+        "streaming",
+        "big-data"
+      ],
+      "plans": [
+        {
+          "name": "small",
+          "description": "Run 1 GearPump worker. Resources allocated: 512 MB RAM for Master, 2 GB RAM for Worker. Suitable for simple GearPump apps not requiring more than 1 GB RAM for storing objects.",
+          "cost": "free"
+        },
+        {
+          "name": "medium",
+          "description": "Run 3 GearPump workers. Resources allocated: 512 MB RAM for Master, 2 GB RAM for each Worker. Suitable for average clustered GearPump apps not requiring more than 1 GB RAM for storing objects.",
+          "cost": "free"
+        }
+      ]
+    }
+  ]
+}

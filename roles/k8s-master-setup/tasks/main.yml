@@ -1,0 +1,156 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Setup kubernetes master services.
+#
+# Install and configure services:
+#  apiserver
+#  controller-manager
+#  scheduler
+#
+###
+---
+
+- name: install pip
+  yum: 
+    name: python-pip 
+    state: latest
+
+# Dependencies required by tapkube - ansible module
+- name: Install pip dependency
+  pip: 
+    name: "{{ repo_host }}/pip/{{ item }}"
+  with_items:
+    - requests-2.11.1-py2.py3-none-any.whl
+    - PyYAML-3.12.tar.gz
+
+- name: Download kubernetes master binaries
+  get_url:
+    url: "{{ repo_host }}/files/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: 0755
+  with_items:
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+
+- name: Write kubernetes master systemd units
+  copy:
+    dest: "/etc/systemd/system/{{ item }}.service"
+    src: "{{ item }}.service"
+  with_items:
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+  notify:
+    - Reload systemd
+
+- name: Change permissions of public certificate for root certificate authority and service account key
+  file:
+    path: "{{ item }}"
+    group: kube
+    mode: 0644
+    owner: root
+  with_items:
+    - /etc/kubernetes/ssl/ca.crt
+    - /etc/kubernetes/ssl/service-account.key
+
+- name: Change permissions of private keys and public certificates for k8s nodes
+  file:
+    path: /etc/kubernetes/ssl/{{ inventory_hostname }}.apiserver.{{ item }}
+    group: kube
+    mode: 0640
+    owner: root
+  with_items:
+    - crt
+    - key
+
+- name: Change ownership of public certificate and private keys
+  file:
+    path: "/etc/kubernetes/ssl/{{ inventory_hostname }}.{{ item }}"
+    group: kube
+  with_items:
+    - crt
+    - key
+
+- name: Write k8s master apiserver configuration file
+  template:
+    dest: /etc/kubernetes/apiserver
+    group: root
+    mode: 0644
+    owner: root
+    src: apiserver.j2
+  notify:
+    - Restart kube-apiserver
+
+- name: Write kube-controller-manager configuration file
+  copy:
+    dest: /etc/kubernetes/controller-manager
+    group: root
+    mode: 0644
+    owner: root
+    src: controller-manager
+  notify:
+    - Restart kube-controller-manager
+
+- name: Write kube-scheduler configuration file
+  copy:
+    dest: /etc/kubernetes/scheduler
+    group: root
+    mode: 0644
+    owner: root
+    src: scheduler
+  notify:
+    - Restart kube-scheduler
+
+- name: Enable and start k8s api service
+  service:
+    name: kube-apiserver
+    enabled: yes
+    state: started
+  register: api_start
+  until: api_start|success
+  retries: 2
+  delay: 15
+
+- name: Enable and start k8s master services
+  service: 
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  with_items:
+    - kube-controller-manager
+    - kube-scheduler
+
+- name: Restart k8s api service if configuration changed
+  service:
+    name: kube-apiserver
+    state: restarted
+  register: api_start
+  until: api_start|success
+  retries: 2
+  delay: 15 
+
+- name: Restart k8s services if configuration changed
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - kube-controller-manager
+    - kube-scheduler
+  when: k8s_changed

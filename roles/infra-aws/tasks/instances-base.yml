@@ -1,0 +1,39 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Create nat ec2 instance
+  ec2:
+    assign_public_ip: yes
+    access_key: "{{ aws_access_key }}"
+    count_tag: "{{ aws_resource_tags | combine(nat_name) }}"
+    exact_count: 1
+    region: "{{ aws_region }}"
+    secret_key: "{{ aws_secret_key }}"
+    group_id: "{{ ec2_sg_nat.group_id }}"
+    image: "{{ aws_nat_image[aws_region] }}"
+    instance_tags: "{{ aws_resource_tags | combine(nat_name) }}"
+    instance_type: "{{ nat_instance_type if nat_instance_type not in instance_types else instance_types[nat_instance_type] }}"
+    key_name: "{{ aws_cluster_key_name }}"
+    source_dest_check: no
+    vpc_subnet_id: "{{ ec2_subnet_jump.subnet.id }}"
+    wait: yes
+    zone: "{{ aws_availability_zone }}"
+  register: ec2_instance_nat
+
+- name: Wait for nat to become available
+  wait_for: host={{ ec2_instance_nat.tagged_instances[0].public_ip }} port=22 timeout=300

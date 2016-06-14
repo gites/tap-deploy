@@ -1,0 +1,531 @@
+{
+  "broker_name" : "hive-broker",
+  "template" : {
+    "body": [
+      {
+      "componentType" : "broker",
+      "persistentVolumeClaims" : null,
+      "deployments" : [{
+        "kind" : "Deployment",
+        "apiVersion" : "extensions/v1beta1",
+        "metadata" : {
+          "name" : "hive-$short_instance_id",
+          "creationTimestamp" : null,
+          "labels" : {
+            "short_instance_id" : "$short_instance_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "space" : "$space"
+          }
+        },
+        "spec" : {
+          "replicas" : 1,
+          "template" : {
+            "metadata" : {
+              "creationTimestamp" : null,
+              "labels" : {
+                "short_instance_id" : "$short_instance_id",
+                "managed_by" : "TAP",
+                "instance_id" : "$instance_id"
+              }
+            },
+            "selector" : {
+              "matchLabels" : {
+                "managed_by" : "TAP",
+                "short_instance_id" : "$short_instance_id",
+                "instance_id" : "$instance_id"
+              }
+            },
+            "spec" : {
+              "volumes" : [{
+                "name" : "hadoop-config-volume",
+                "configMap" : {
+                  "name" : "hive-conf"
+                }
+              }, {
+                "name" : "hadoop-krb-volume",
+                "secret" : {
+                  "secretName" : "hadoop-keytabs",
+                  "items" : [{
+                    "key" : "broker",
+                    "path" : "broker.keytab"
+                  }, {
+                    "key" : "hive",
+                    "path" : "hive.keytab"
+                  }]
+                }
+              }, {
+                "name" : "cacert-volume",
+                "secret" : {
+                  "secretName" : "cdh-ca",
+                  "items" : [{
+                    "key" : "cacerts",
+                    "path" : "cacerts.jks"
+                  }]
+                }
+              }],
+              "containers" : [{
+                "name" : "hive-broker",
+                "image" : "$repository_uri/hive-broker:$tap_version",
+                "resources": {
+                  "limits": {
+                    "memory": "672Mi"
+                  },
+                  "requests": {
+                    "memory": "672Mi"
+                  }
+                },
+                "volumeMounts" : [{
+                  "mountPath" : "/etc/hadoop",
+                  "name" : "hadoop-config-volume",
+                  "readOnly" : true
+                },{
+                  "mountPath" : "/etc/keytabs",
+                  "name" : "hadoop-krb-volume",
+                  "readOnly" : true
+                },{
+                  "mountPath" : "/etc/ssl/certs/java/",
+                  "name" : "cacert-volume",
+                  "readOnly" : true
+                }],
+                "ports" : [{
+                  "containerPort" : 80
+                }],
+                "env" : [{
+                  "name" : "SYSTEM_USER_KEYTAB_PATH",
+                  "value" : "/etc/keytabs/broker.keytab"
+                }, {
+                  "name" : "HIVE_CONFIGURATION_PATH",
+                  "value" : "/etc/hadoop/"
+                }, {
+                  "name" : "HIVE_SUPERUSER_KEYTAB_PATH",
+                  "value" : "/etc/keytabs/hive.keytab"
+                }, {
+                  "name" : "BASE_GUID",
+                  "value" : "hive"
+                }, {
+                  "name" : "CLOUDERA_TRUSTSTORE",
+                  "value": "/etc/ssl/certs/java/cacerts.jks"
+                }, {
+                  "name" : "CLOUDERA_TRUSTSTORE_PASSWORD",
+                  "valueFrom" : {
+                    "secretKeyRef" : {
+                      "name" : "cdh-ca",
+                      "key" : "password"
+                    }
+                  }
+                }, {
+                  "name" : "HIVE_SUPERUSER",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "cloudera-config",
+                      "key" : "hive.principal"
+                    }
+                  }
+                }, {
+                  "name" : "HIVE_SERVER2_THRIFT_BIND_HOST",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "cloudera-config",
+                      "key" : "hive.server.thrift.host"
+                    }
+                  }
+                }, {
+                  "name" : "HIVE_SERVER2_THRIFT_PORT",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "cloudera-config",
+                      "key" : "hive.server.thrift.port"
+                    }
+                  }
+                }, {
+                  "name" : "KRB_REALM",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "kerberos-config",
+                      "key" : "krb.realm"
+                    }
+                  }
+                }, {
+                  "name" : "STORE_CLUSTER",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "cloudera-config",
+                      "key" : "zookeeper.cluster.host"
+                    }
+                  }
+                }, {
+                  "name" : "SYSTEM_USER",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "broker-config",
+                      "key" : "broker.system.user"
+                    }
+                  }
+                }, {
+                  "name" : "SYSTEM_USER_PASSWORD",
+                  "valueFrom" : {
+                    "secretKeyRef" : {
+                      "name" : "broker-passwords",
+                      "key" : "broker.system.user.password"
+                    }
+                  }
+                }, {
+                  "name" : "USER_PASSWORD",
+                  "valueFrom" : {
+                    "secretKeyRef" : {
+                      "name" : "broker-passwords",
+                      "key" : "broker.hive.password"
+                    }
+                  }
+                }, {
+                  "name" : "TAGS",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "broker-config",
+                      "key" : "broker.hive.tags"
+                    }
+                  }
+                }, {
+                  "name" : "KRB_KDC",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "kerberos-config",
+                      "key" : "krb.kdc"
+                    }
+                  }
+                }, {
+                  "name" : "KRB_REALM",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "kerberos-config",
+                      "key" : "krb.realm"
+                    }
+                  }
+                }, {
+                  "name" : "SPRING_PROFILES_ACTIVE",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "broker-config",
+                      "key" : "broker.profiles"
+                    }
+                  }
+                },{
+                  "name" : "JAVA_OPTS",
+                  "value" : "-Xss228k -Xms512m -Xmx512m -XX:MetaspaceSize=128m"
+                }, {
+                  "name" : "VERSION",
+                  "value" : "0.8.0"
+                }
+                ]
+              }
+              ]
+            }
+          }
+        }
+      }
+      ],
+      "services" : [{
+        "kind" : "Service",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id",
+          "creationTimestamp" : null,
+          "labels" : {
+            "short_instance_id" : "$short_instance_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "space" : "$space"
+          }
+        },
+        "spec" : {
+          "type" : "NodePort",
+          "ports" : [{
+            "name" : "broker",
+            "protocol" : "TCP",
+            "port" : 80,
+            "targetPort" : 8080,
+            "nodePort" : 0
+          }
+          ],
+          "selector" : {
+            "instance_id" : "$instance_id"
+          }
+        },
+        "status" : {
+          "loadBalancer" : {}
+        }
+      }
+      ],
+      "serviceAccounts" : [{
+        "kind" : "ServiceAccount",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id",
+          "creationTimestamp" : null,
+          "labels" : {
+            "short_instance_id" : "$short_instance_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "space" : "$space"
+          }
+        },
+        "secrets" : null
+      }
+      ],
+      "secrets" : [{
+        "kind" : "Secret",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-broker-credentials",
+          "creationTimestamp" : null,
+          "labels" : {
+            "short_instance_id" : "$short_instance_id",
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "data" : {
+          "password" : "JHJhbmRvbTI=",
+          "username" : "JHJhbmRvbTE="
+        }
+      }
+      ]
+      }
+    ],
+    "hooks" : {
+      "provision" : {
+        "kind" : "Pod",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-provision-$random_dns1",
+          "creationTimestamp" : null,
+          "labels" : {
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "spec" : {
+          "volumes" : null,
+          "containers" : [{
+            "name" : "$short_instance_id-provision",
+            "image" : "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+            "env" : [{
+              "name" : "ACTION",
+              "value" : "CREATE"
+            }, {
+              "name" : "BROKER_SERVICE_NAME",
+              "value" : "$broker_short_instance_id"
+            }, {
+              "name" : "BODY",
+              "value" : "{\"plan_id\": \"$plan_id\", \"service_id\": \"$offering_id\", \"organization_guid\": \"$org\", \"space_guid\":\"space\"}"
+            }, {
+              "name" : "EXPECTED_CODE",
+              "value" : "201"
+            }, {
+              "name" : "URL",
+              "value" : "/v2/service_instances/$instance_id"
+            }, {
+              "name" : "BROKER_USERNAME",
+              "value" : "user"
+            }, {
+              "name" : "BROKER_PASSWORD",
+              "valueFrom" : {
+                "secretKeyRef" : {
+                  "name" : "broker-passwords",
+                  "key" : "broker.hive.password"
+                }
+              }
+            }
+            ],
+            "resources" : {},
+            "imagePullPolicy" : "IfNotPresent"
+          }
+          ],
+          "restartPolicy" : "Never",
+          "dnsPolicy" : "ClusterFirst",
+          "serviceAccountName" : ""
+        }
+      },
+      "bind" : {
+        "kind" : "Pod",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-bind-$random_dns1",
+          "creationTimestamp" : null,
+          "labels" : {
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "spec" : {
+          "volumes" : null,
+          "containers" : [{
+            "name" : "$short_instance_id-bind",
+            "image" : "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+            "env" : [{
+              "name" : "ACTION",
+              "value" : "BIND"
+            }, {
+              "name" : "BROKER_SERVICE_NAME",
+              "value" : "$broker_short_instance_id"
+            }, {
+              "name" : "BODY",
+              "value" : "{\"plan_id\": \"$plan_id\", \"service_id\": \"$offering_id\", \"organization_guid\": \"$org\", \"space_guid\":\"$space\", \"app_guid\": \"$binded_instance_id\"}"
+            }, {
+              "name" : "EXPECTED_CODE",
+              "value" : "201"
+            }, {
+              "name" : "URL",
+              "value" : "/v2/service_instances/$instance_id/service_bindings/$short_instance_id$binded_instance_id"
+            }, {
+              "name" : "BROKER_USERNAME",
+              "value" : "user"
+            }, {
+              "name" : "BROKER_PASSWORD",
+              "valueFrom" : {
+                "secretKeyRef" : {
+                  "name" : "broker-passwords",
+                  "key" : "broker.hive.password"
+                }
+              }
+            }
+            ],
+            "resources" : {},
+            "imagePullPolicy" : "IfNotPresent"
+          }
+          ],
+          "restartPolicy" : "Never",
+          "dnsPolicy" : "ClusterFirst",
+          "serviceAccountName" : ""
+        }
+      },
+      "unbind" : {
+        "kind" : "Pod",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-unbind-$random_dns1",
+          "creationTimestamp" : null,
+          "labels" : {
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "spec" : {
+          "volumes" : null,
+          "containers" : [{
+            "name" : "$short_instance_id-unbind",
+            "image" : "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+            "env" : [{
+              "name" : "ACTION",
+              "value" : "UNBIND"
+            }, {
+              "name" : "BROKER_SERVICE_NAME",
+              "value" : "$broker_short_instance_id"
+            }, {
+              "name" : "EXPECTED_CODE",
+              "value" : "200"
+            }, {
+              "name" : "URL",
+              "value" : "/v2/service_instances/$instance_id/service_bindings/$short_instance_id$binded_instance_id?service_id=$offering_id&plan_id=$plan_id"
+            }, {
+              "name" : "BROKER_USERNAME",
+              "value" : "user"
+            }, {
+              "name" : "BROKER_PASSWORD",
+              "valueFrom" : {
+                "secretKeyRef" : {
+                  "name" : "broker-passwords",
+                  "key" : "broker.hive.password"
+                }
+              }
+            }
+            ],
+            "resources" : {},
+            "imagePullPolicy" : "IfNotPresent"
+          }
+          ],
+          "restartPolicy" : "Never",
+          "dnsPolicy" : "ClusterFirst",
+          "serviceAccountName" : ""
+        }
+      },
+      "deprovision" : {
+        "kind" : "Pod",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-deprovision-$random_dns1",
+          "creationTimestamp" : null,
+          "labels" : {
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "spec" : {
+          "volumes" : null,
+          "containers" : [{
+            "name" : "$short_instance_id-deprovision",
+            "image" : "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+            "env" : [{
+              "name" : "ACTION",
+              "value" : "DELETE"
+            }, {
+              "name" : "BROKER_SERVICE_NAME",
+              "value" : "$broker_short_instance_id"
+            }, {
+              "name" : "EXPECTED_CODE",
+              "value" : "200"
+            }, {
+              "name" : "URL",
+              "value" : "/v2/service_instances/$instance_id?service_id=$offering_id&plan_id=$plan_id"
+            }, {
+              "name" : "BROKER_USERNAME",
+              "value" : "user"
+            }, {
+              "name" : "BROKER_PASSWORD",
+              "valueFrom" : {
+                "secretKeyRef" : {
+                  "name" : "broker-passwords",
+                  "key" : "broker.hive.password"
+                }
+              }
+            }
+            ],
+            "resources" : {},
+            "imagePullPolicy" : "IfNotPresent"
+          }
+          ],
+          "restartPolicy" : "Never",
+          "dnsPolicy" : "ClusterFirst",
+          "serviceAccountName" : ""
+        }
+      }
+    }
+  },
+  "services" : [{
+    "name" : "hive",
+    "description" : "Data warehouse infrastructure built on top of Hadoop for providing query and data analysis capabilities.",
+    "metadata" : [{
+      "key" : "source_offering_id",
+      "value" : "hive"
+    }, {
+      "key" : "source_plan_id-standard",
+      "value" : "hive-standard-plan"
+    }
+    ],
+    "bindable" : true,
+    "tags" : [
+      "hadoop",
+      "hive"
+    ],
+    "plans" : [{
+      "name" : "standard",
+      "description" : "Create private HIVE database within storage space shared across your organization.",
+      "cost" : "*"
+    }]
+  }
+  ]
+}

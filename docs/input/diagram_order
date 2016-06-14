@@ -1,0 +1,16 @@
+# add empty line if you want to have "broken" roles on a diagram
+nat
+jumpbox
+k8s-ca
+k8s-etcd-0
+k8s-etcd-X
+k8s-master-0
+k8s-master-K
+k8s-worker-0
+k8s-worker-L
+
+cdh-manager
+cdh-master-0
+cdh-master-N
+cdh-worker-0
+cdh-worker-M

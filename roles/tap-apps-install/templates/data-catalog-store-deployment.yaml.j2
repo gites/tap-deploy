@@ -1,0 +1,48 @@
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  labels:
+    app: data-catalog-store
+  name: data-catalog-store
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: data-catalog-store
+    spec:
+      containers:
+        - name: elasticsearch
+          image: '{{ repository_uri }}/elasticsearch:1.3'
+          command: ["elasticsearch"]
+          args:
+            - -Des.default.path.data=/data
+            - --node.local=true
+            - --discovery.zen.ping.multicast.enabled=false
+          volumeMounts:
+            - mountPath: /data
+              name: data
+      volumes:
+        - name: data
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: data-catalog-store
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: data-catalog-store
+spec:
+  ports:
+    - port: 9200
+  selector:
+    app: data-catalog-store
+

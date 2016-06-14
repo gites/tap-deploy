@@ -1,0 +1,298 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Generate certificates and key pairs for CA and all other hosts.
+#
+# These keys and certificates are necessary to keep internal platform
+# communication secured via SSL.
+#
+###
+---
+
+- name: Install prerequisite os packages
+  yum:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+    - openssl
+
+- name: Create ca directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0750
+  with_items:
+    - /etc/kubernetes-ca/ca
+    - /etc/kubernetes-ca/crt
+    - /etc/kubernetes-ca/config
+    - /etc/kubernetes-ca/csr
+    - /etc/kubernetes-ca/key
+
+- name: Create openssl config file for k8s nodes
+  copy:
+    src: openssl-node.cnf
+    dest: /etc/kubernetes-ca/config/openssl-node.cnf
+    backup: yes
+    owner: root
+    group: root
+    mode: 0640
+
+- block:
+    - name: Create private key for root certificate authority
+      command: openssl genrsa -out /etc/kubernetes-ca/ca/ca.key 2048
+      args:
+        creates: /etc/kubernetes-ca/ca/ca.key
+
+    - name: Create public certificate for root certificate authority
+      command: openssl req -x509 -new -nodes -key /etc/kubernetes-ca/ca/ca.key -days 3650 -out /etc/kubernetes-ca/ca/ca.crt -subj "/CN=kube-ca"
+      args:
+        creates: /etc/kubernetes-ca/ca/ca.crt
+
+    - name: Create private key for k8s api admin access
+      command: openssl genrsa -out /etc/kubernetes-ca/key/admin.key 2048
+      args:
+        creates: /etc/kubernetes-ca/key/admin.key
+
+    - name: Create certificate signing request for k8s api admin access
+      command: openssl req -new -key /etc/kubernetes-ca/key/admin.key -out /etc/kubernetes-ca/csr/admin.csr -subj "/CN=kube-admin"
+      args:
+        creates: /etc/kubernetes-ca/csr/admin.csr
+
+    - name: Create public certificate for k8s api admin access
+      command: >
+        openssl x509 -req -in /etc/kubernetes-ca/csr/admin.csr -CA /etc/kubernetes-ca/ca/ca.crt -CAkey /etc/kubernetes-ca/ca/ca.key 
+        -CAcreateserial -out /etc/kubernetes-ca/crt/admin.crt -days 730
+      args:
+        creates: /etc/kubernetes-ca/crt/admin.crt
+
+    - name: Create private keys for k8s and cdh nodes
+      command: openssl genrsa -out /etc/kubernetes-ca/key/{{ item }}.key 2048
+      args:
+        creates: /etc/kubernetes-ca/key/{{ item }}.key
+      with_items: "{{ groups['ca-client'] }}"
+
+    - name: Create certificate signing requests for k8s and cdh nodes
+      environment:
+        NODE_DNS: "{{ item }}"
+        NODE_IP: "{{ hostvars[item].ansible_host }}"
+      command: >
+        openssl req -new -key /etc/kubernetes-ca/key/{{ item }}.key -out /etc/kubernetes-ca/csr/{{ item }}.csr 
+        -subj "/CN={{ hostvars[item].ansible_host }}" -config /etc/kubernetes-ca/config/openssl-node.cnf
+      args:
+        creates: /etc/kubernetes-ca/csr/{{ item }}.csr
+      with_items: "{{ groups['ca-client'] }}"
+
+    - name: Create public certificates for k8s and cdh nodes
+      environment:
+        NODE_DNS: "{{ item }}"
+        NODE_IP: "{{ hostvars[item].ansible_host }}"
+      command: >
+        openssl x509 -req -in /etc/kubernetes-ca/csr/{{ item }}.csr -CA /etc/kubernetes-ca/ca/ca.crt -CAkey /etc/kubernetes-ca/ca/ca.key 
+        -CAserial /etc/kubernetes-ca/ca/ca.srl -out /etc/kubernetes-ca/crt/{{ item }}.crt -days 730 -extensions v3_req
+        -extfile /etc/kubernetes-ca/config/openssl-node.cnf
+      args:
+        creates: /etc/kubernetes-ca/crt/{{ item }}.crt
+      with_items: "{{ groups['ca-client'] }}"
+    
+    - include: service.yml
+      with_items:
+        - { name: "docker-registry", ip: "{{ dr_clusterip }}" }
+
+    - name: Create openssl config file for k8s api server
+      template: dest=/etc/kubernetes-ca/config/openssl-apiserver.cnf group=root mode=0640 owner=root src=openssl-apiserver.j2
+
+    - name: Create private key for apiserver
+      command: openssl genrsa -out /etc/kubernetes-ca/key/{{ item }}.apiserver.key 2048
+      args:
+        creates: /etc/kubernetes-ca/key/{{ item }}.apiserver.key
+      with_items: "{{ groups['k8s-master'] }}"
+
+    - name: Create certificate signing request for apiserver
+      environment:
+        NODE_DNS: "{{ item }}"
+      command: >
+        openssl req -new -key /etc/kubernetes-ca/key/{{ item }}.apiserver.key -out /etc/kubernetes-ca/csr/{{ item }}.apiserver.csr 
+        -subj "/CN=kube-apiserver" -config /etc/kubernetes-ca/config/openssl-apiserver.cnf
+      args:
+        creates: /etc/kubernetes-ca/csr/{{ item }}.apiserver.csr
+      with_items: "{{ groups['k8s-master'] }}"
+
+    - name: Create public certificate for apiserver
+      environment:
+        NODE_DNS: "{{ item }}"
+      command: >
+        openssl x509 -req -in /etc/kubernetes-ca/csr/{{ item }}.apiserver.csr -CA /etc/kubernetes-ca/ca/ca.crt -CAkey /etc/kubernetes-ca/ca/ca.key 
+        -CAserial /etc/kubernetes-ca/ca/ca.srl -out /etc/kubernetes-ca/crt/{{ item }}.apiserver.crt -days 730 -extensions v3_req 
+        -extfile /etc/kubernetes-ca/config/openssl-apiserver.cnf
+      args:
+        creates: /etc/kubernetes-ca/crt/{{ item }}.apiserver.crt
+      with_items: "{{ groups['k8s-master'] }}"
+
+    - name: Create service account key
+      command: openssl genrsa -out /etc/kubernetes-ca/key/service-account.key 2048
+      args:
+        creates: /etc/kubernetes-ca/key/service-account.key
+
+    - name: Get ca.crt and ca.key files
+      slurp:
+        src: "{{ item }}"
+      with_items:
+        - /etc/kubernetes-ca/ca/ca.key
+        - /etc/kubernetes-ca/ca/ca.crt
+      register: ca_keys_base64
+
+    - name: Get admin.crt and admin.key files
+      slurp:
+        src: "{{ item }}"
+      with_items:
+        - /etc/kubernetes-ca/key/admin.key
+        - /etc/kubernetes-ca/crt/admin.crt
+      register: admin_keys_base64
+
+    - name: Get admin.crt and admin.key files
+      slurp:
+        src: "{{ item }}"
+      register: service_account_key_base64
+      with_items:
+        - /etc/kubernetes-ca/key/service-account.key
+
+    - name: Get host specific *.crt and *.key files
+      slurp:
+        src: "{{ item }}"
+      with_flattened:
+        - "[{% for hostname in groups['ca-client'] %}'/etc/kubernetes-ca/key/{{ hostname }}.key'{% if not loop.last %},{% endif %}{% endfor %}]"
+        - "[{% for hostname in groups['ca-client'] %}'/etc/kubernetes-ca/crt/{{ hostname }}.crt'{% if not loop.last %},{% endif %}{% endfor %}]"
+        - "[{% for hostname in groups['k8s-master'] %}'/etc/kubernetes-ca/key/{{ hostname }}.apiserver.key'{% if not loop.last %},{% endif %}{% endfor %}]"
+        - "[{% for hostname in groups['k8s-master'] %}'/etc/kubernetes-ca/crt/{{ hostname }}.apiserver.crt'{% if not loop.last %},{% endif %}{% endfor %}]"
+      register: host_specific_keys_base64
+
+    - name: Get *.csr files
+      slurp:
+        src: "{{ item }}"
+      with_flattened:
+        - /etc/kubernetes-ca/csr/admin.csr
+        - "[{% for hostname in groups['ca-client'] %}'/etc/kubernetes-ca/csr/{{ hostname }}.csr'{% if not loop.last %},{% endif %}{% endfor %}]"
+        - "[{% for hostname in groups['k8s-master'] %}'/etc/kubernetes-ca/csr/{{ hostname }}.apiserver.csr'{% if not loop.last %},{% endif %}{% endfor %}]"
+      register: csr_keys_base64
+
+  delegate_to: "{{ groups['k8s-ca'][0] }}"
+
+- name: Distribute files to all nodes
+  copy:
+    dest: "{{ item.source }}"
+    content: "{{ item.content | b64decode }}"
+    mode: 0640
+    owner: root
+    group: root
+  with_flattened:
+    - "{{ ca_keys_base64.results }}"
+    - "{{ admin_keys_base64.results }}"
+    - "{{ host_specific_keys_base64.results }}"
+    - "{{ csr_keys_base64.results }}"
+    - "{{ service_account_key_base64.results }}"
+
+- name: Create directory for keys on each host
+  file:
+    path: /etc/kubernetes/ssl
+    state: directory
+    mode: 0755
+    owner: root
+    group: root
+  with_items: "{{ groups['ca-client'] }}"
+  delegate_to: "{{ item }}"
+
+- name: Copy public certificate for root certificate authority
+  copy:
+    content: "{{ item[0].content | b64decode }}"
+    dest: /etc/kubernetes/ssl/ca.crt
+    mode: 0640
+    owner: root
+  with_nested:
+    - "{{ ca_keys_base64.results }}"
+    - "{{ groups['ca-client'] }}"
+  delegate_to: "{{ item[1] }}"
+  when: "{{ item[0].source.endswith('ca.crt') }}"
+
+- name: Add public ca certyficate as trusted cert for all hosts
+  file:
+    src: "/etc/kubernetes/ssl/ca.crt"
+    dest: "/etc/pki/ca-trust/source/anchors/tap-ca.pem"
+    owner: root
+    group: root
+    state: link 
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['ca-client'] }}"
+
+- name: Refresh ca authority
+  shell: update-ca-trust
+  changed_when: false
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['ca-client'] }}"
+
+- name: Copy service account key
+  copy:
+    content: "{{ item[0].content | b64decode }}"
+    dest: /etc/kubernetes/ssl/service-account.key
+    mode: 0640
+    owner: root
+  with_nested:
+    - "{{ service_account_key_base64.results }}"
+    - "{{ groups['k8s-master'] }}"
+  delegate_to: "{{ item[1] }}"
+
+- name: Copy private keys and public certificates for k8s nodes
+  copy:
+    content: "{{ item[0].content | b64decode }}"
+    dest: /etc/kubernetes/ssl/{{ item[0].source | basename }}
+    mode: 0640
+    owner: root
+  with_nested:
+    - "{{ host_specific_keys_base64.results }}"
+    - "{{ groups['ca-client'] }}"
+    - - crt
+      - key
+  delegate_to: "{{ item[1] }}"
+  when: "{{ item[1] in item[0].source and item[0].source.endswith(item[2]) }}"
+
+- name: Copy public certificate for tap-admin
+  copy:
+    content: "{{ item[0].content | b64decode }}"
+    dest: /home/tap-admin/.kube/ca.crt
+    mode: 0640
+    owner: tap-admin
+    group: tap-admin
+  with_nested:
+    - "{{ ca_keys_base64.results }}"
+    - "{{ groups['k8s-master'] + groups['jumpbox'] }}"
+  delegate_to: "{{ item[1] }}"
+  when: "{{ item[0].source.endswith('ca.crt') }}"
+
+- name: Copy admin keys for tap-admin
+  copy:
+    content: "{{ item[0].content | b64decode }}"
+    dest: /home/tap-admin/.kube/{{ item[0].source | basename }}
+    mode: 0640
+    owner: tap-admin
+    group: tap-admin
+  with_nested:
+    - "{{ admin_keys_base64.results }}"
+    - "{{ groups['k8s-master'] + groups['jumpbox'] }}"
+  delegate_to: "{{ item[1] }}"
+

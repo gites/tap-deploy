@@ -1,0 +1,248 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-small"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "10240",
+                  "volume_name": "influxdb-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": [],
+                "containers": [
+                  {
+                    "name": "influxdb088",
+                    "image": "$repository_uri/tutum/influxdb:0.8.8",
+                    "volumeMounts":[
+                      {
+                        "mountPath": "/var/lib/influxdb",
+                        "name": "influxdb-persistent-storage"
+                      }
+                    ],
+                    "ports": [
+                      {
+                        "containerPort": 8083,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 8084,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 8086,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name":"INFLUXDB_SERVICE_NAME",
+                        "value":"$idx_and_short_instance_id"
+                      },
+                      {
+                        "name": "INFLUXDB_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-influxdb088-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "INFLUXDB_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-influxdb088-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "INFLUXDB_INIT_PWD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-influxdb088-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "2Gi"
+                      },
+                      "limits": {
+                        "memory": "2Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "port": 8083,
+                "protocol": "TCP",
+                "name":"admin"
+              },
+              {
+                "port": 8084,
+                "protocol": "TCP",
+                "name":"transport"
+              },
+              {
+                "port": 8086,
+                "protocol": "TCP",
+                "name":"http"
+
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-influxdb088-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "username": "cm9vdA==",
+            "password": "$base64-$random1"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "influxdb-088",
+    "description": "Fast, highly-available database for storage and retrieval of time series data.",
+    "metadata":[
+      {"key": "displayName","value": "InfluxDB 0.8.8"},
+      {"key": "imageUrl","value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACoFBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3SanooCAAAA33RSTlMAAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKiwtLi8wMjM0NTY4OTo8Pj9AQUJDREVHSElKS01OT1BRUlNUVVZXWFpbXF9gYWJjZGVnaWprbW5vcHFyc3R1dnd4ent8fX5/gIGCg4SFiImKi4yNjo+QkZKTlJaXmJqbnp+hoqOkpaaoqaqrrK6vsLGytLW2t7i5u7y9vr/AwsPExcbJysvMzc7S09TV1tfY2drb3N3e3+Dh4uPl5ufo6uvs7e7v8PHy8/T19vf4+fr7/P3+UGg1LAAABGlJREFUeF6l1/tX03Ucx/F3G7swbi0TEEQoSEXUJlSWFkZqUBYpSYal3Ui0skiINNSsMFNLTCrMrNAyzDbCRpUlEQpJbsUthwzG+1/pc3l/zvbdxbOznr+9fnicbZ/z2XcA1/2PGIbQ4hv6caAxEa5ZBGxsR16HJRb8LMq2xoJPE3bGgn8i3KNARm1rc6UhOvwJ4a9pLxnky54SFV5KuFbOlL/k/CAqDM/5BB4tEKsKZZPWqDAsaGz9joHzVkhbe8iFVGEUWGZ2MNDpxIByBMrc5ehoyg+Drbdngyr9ImrrELbobz7GVwdj094JRLtNzRJp3M1Nwg7dyq2pF0UjNwbhw/KYFtB8ho2u1xfHAZQ6rg59NBt4y5Gq0uJFKGujfQZx2AxBbVC4TotfIjxhkAczhfg+BFeq8HotbkDKwld8LRslIdhySdrR6Vp8P9lzbJh2XWFjIA5C2i7s1QdBi/UdEj/OxhHkeZdJUPzOkfqb6K66ET3O/fMgCEPqtwxM8ht9J8p+5iCuWbxWBX02+p5rMZn5fNQjlcXGVjnG5zCR8S+iOyksXs2AOOpGheeyMUDj06ry+/hV2AxhcTXioBiPkh02AlhR24AlFNMLdoth+s3/FDNOaPE20OCcp+vWJPN9VN1+uOUXDt7V83Gc1IjETn0g3uRFxMuLF+7oYcCuk9r4UN0WuuRzBwU6GQeJM04xvTYAr0KRD2WHzRBcfpsPh3bG81HIcK/Jj8+iNkcahGSZKe4a3Z7PXrUpPIWqXxue8rBxod0zcvIuCF+eF3l7dRKPEe3kH3FRHy3fqvA4k46tRmJ1mBuAl26n6bL4hbXe0fnePM1X75LE80fFcsaD6A6kloNq5h98e8V7OYYUPYYKv0f0tUwD2TKFK0HVJsGVjIBfE59FYoBs2w2gyla4SNlMpKrZWEfjFBDW9rm0Z3UAlpKHcwGWKPwWw4YzYnhs4fGMc9z25oKuhp/GIVO+wjXASt4/jugohBBsuac0DyCxuvXjTckAL0iyA36QdiIbRAkFaQAhuMKNiMen00rxSDNstg0L3ASatHgFXRaDnMX+k7v5YM8k4u+Ga2AnysrlvFfh2/h6jY11kXESUrvF1L9Bc1TcntQxeunwOEXhE1a2prWpuUWCfWxUCFWw89i+4iAMXUoPvZJk4zdy3IforddJPHsKsa+ubBZsnETWQb0Wr0QVuseY/bMoq7wsFaiECyhy0Vf4eS2GNS5GvupGWUcGBGT6ErV1B2EwLy2bA4Yn+7n9MN4vs2YZWhjwDgZqwsFZ7Ijt/vnIRfnk9JVDTmntebL/RMDQjHgaVJVIrdf8HhyIhN9G/FENs5tsg9z6E2L1p0fC29hRq3E3UpvV0W13oaclEyLhFxHHFtJ4AEP/gL7eCBAJPzHOwcty5GqfaVREbJtE0Uo5j8rVZYgKH1B3nN5jOx/deRAVthPupa1b8eaexywQHf4i7H8JUeKNhGtjwcZv5AsnxILBXNeHl/ekQBQ49v4Dj//tqcqTIOkAAAAASUVORK5CYII="},
+      {"key": "longDescription","value": "Fast, highly-available database for storage and retrieval of time series data."},
+      {"key": "providerDisplayName","value": ""},
+      {"key": "documentationUrl","value": "http://influxdb.com/docs/v0.8/introduction/getting_started.html"},
+      {"key": "supportUrl","value": "https://customers.influxdb.com/"}
+    ],
+    "bindable": true,
+    "tags": [
+      "influxdb",
+      "database",
+      "time-series",
+      "iot"
+    ],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated InfluxDB 0.8.8 database. Resources used: 1 compute node, 2 GB RAM and 10 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

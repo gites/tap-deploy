@@ -1,0 +1,92 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Install kpropd file
+  template:
+    src: kpropd.j2
+    dest: /var/kerberos/krb5kdc/kpropd.acl
+  notify: Restart kpropd
+
+- name: Fetch krb5kdc certs
+  slurp:
+    src: "{{ item }}"
+  register: krb_certs
+  delegate_to: "{{ groups['cdh-manager'][0] }}"
+  with_items:
+    - /var/kerberos/krb5kdc/cacert.pem
+    - /var/kerberos/krb5kdc/kdc.pem
+    - /var/kerberos/krb5kdc/kdckey.pem
+
+- name: Copy krb5kdc certs
+  copy:
+    dest: "{{ item.source }}"
+    content: "{{ item.content | b64decode }}"
+  with_items: "{{ krb_certs.results }}"
+
+- name: Get host keytab
+  slurp:
+    src: /etc/hosts.keytab
+  register: keytab
+  delegate_to: "{{ groups['cdh-manager'][0] }}"
+
+- name: Get host keytab shasum
+  stat:
+    path: /etc/hosts.keytab
+  register: host_keytab
+  delegate_to: "{{ groups['cdh-manager'][0] }}"
+
+- name: Get local keytab shasum
+  stat:
+    path: /etc/krb5.keytab
+  register: local_keytab
+
+# can not use copy module, it is not prepared for raw data
+- name: Save host keytab
+  shell: echo "{{ keytab.content }}" | base64 -d > /etc/krb5.keytab
+  when: not local_keytab.stat.exists or host_keytab.stat.checksum != local_keytab.stat.checksum 
+  notify: Restart kpropd
+
+- name: Get host master key
+  slurp:
+    src: /var/kerberos/krb5kdc/.k5.CLOUDERA
+  register: master_key
+  delegate_to: "{{ groups['cdh-manager'][0] }}"
+
+- name: Get host key shasum
+  stat:
+    path: /var/kerberos/krb5kdc/.k5.CLOUDERA
+  register: host_key
+  delegate_to: "{{ groups['cdh-manager'][0] }}"
+
+- name: Get local key shasum
+  stat:
+    path: /var/kerberos/krb5kdc/.k5.CLOUDERA
+  register: local_key
+
+- name: Save host master key
+  shell: echo "{{ master_key.content }}" | base64 -d > /var/kerberos/krb5kdc/.k5.CLOUDERA
+  when: not local_key.stat.exists or host_key.stat.checksum != local_key.stat.checksum
+  notify: Restart kpropd
+
+- name: Start kerberos services
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  with_items:
+    - kprop

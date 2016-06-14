@@ -1,0 +1,5 @@
+[
+{% for disk in (instances[(item | split('.'))[0]].storage | default({})).devices | default([]) | map(attribute='device') | list %}
+"/data/lvm_{{ (disk | split('/'))[-1] }}"{% if not loop.last %},{% endif %}
+{% endfor %}
+]

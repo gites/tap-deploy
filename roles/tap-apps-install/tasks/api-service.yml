@@ -1,0 +1,373 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: API-SERVICE Get CertKey
+  uri:
+    url: "http://{{ ca_service_clusterip }}/api/v1/certkey/api-service"
+    method: GET
+    user: "{{ ca_service.user }}"
+    password: "{{ hostvars[groups['k8s-master'][0]].passwords.ca_service.pass }}"
+    force_basic_auth: yes
+    status_code: 200
+    return_content: yes
+    timeout: 60
+  register: certkey
+
+- name: API-SERVICE create cert and key secret for nginx
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Secret"
+      metadata:
+        name: "api-service-nginx-certkey"
+      data:
+        ssl.crt: "{{ certkey.json['cert'] | b64encode }}"
+        ssl.key: "{{ certkey.json['key'] | b64encode }}"
+
+- name: API-SERVICE Create a service
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Service"
+      apiVersion: "v1"
+      metadata:
+        name: "api-service"
+        labels:
+          app: "api-service"
+      spec:
+        type: "ClusterIP"
+        selector:
+          app: "api-service"
+        ports:
+          - port: 80
+            protocol: "TCP"
+            name: "rest"
+          - port: 443
+            protocol: "TCP"
+            name: "rest-ssl"
+    state: present
+
+- name: API-SERVICE Create a ConfigMap instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "ConfigMap"
+      apiVersion: "v1"
+      metadata:
+        name: "api-service"
+        labels:
+          app: "api-service"
+      data:
+        port: "80"
+        ssl-port: "443"
+        user: "admin"
+        pass: "password"
+        broker-log-level: "INFO"
+        host: "api-service"
+
+- name: API-SERVICE Create a deployment instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Deployment"
+      apiVersion: "extensions/v1beta1"
+      metadata:
+        name: "api-service"
+        labels:
+          tap_app_type: CORE
+      spec:
+        replicas: 1
+        template:
+          metadata:
+            labels:
+              app: api-service
+          spec:
+            volumes:
+              - name: "api-service-ca-pem-volume"
+                secret:
+                  secretName: "platform-ca-root-cert"
+              - name: "api-service-ca-certificates-crt-volume"
+                secret:
+                  secretName: "platform-ca-roots-bundle"
+              - name: "api-service-hashed-ca-volume"
+                secret:
+                  secretName: "platform-ca-root-cert-hashed"
+              - name: "api-service-certkey-volume"
+                secret:
+                  secretName: "api-service-nginx-certkey"
+            containers:
+              - name: "nginx-ssl"
+                image: "{{ repository_uri }}/tap-nginx-dyn-stream:{{ tap_version }}"
+                volumeMounts:
+                  - name: "api-service-certkey-volume"
+                    mountPath: "/etc/nginx/ssl"
+                ports:
+                  - containerPort: 443
+                    protocol: "TCP"
+                imagePullPolicy: "Always"
+              - name: "api-service"
+                image: "{{ repository_uri }}/tap-api-service:{{ tap_version }}"
+                volumeMounts:
+                  - name: "api-service-ca-pem-volume"
+                    mountPath: "/etc/ssl/certs/ca.pem"
+                    subPath: ca.pem
+                    readOnly: true
+                  - name: "api-service-ca-certificates-crt-volume"
+                    mountPath: "/etc/ssl/certs/ca-certificates.crt"
+                    subPath: ca-certificates.crt
+                    readOnly: true
+                  - name: "api-service-hashed-ca-volume"
+                    mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+                    subPath: "{{ ca_cert.json['hash'] }}.0"
+                    readOnly: true
+                ports:
+                  - containerPort: 80
+                    protocol: "TCP"
+                resources:
+                  limits:
+                    memory: "{{ api_service_memory_limit }}"
+                  requests:
+                    memory: "{{ api_service_memory_limit }}"
+                env:
+                  - name: "DOMAIN"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "platform"
+                        key: "domain"
+                  - name: "TAP_VERSION"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "platform"
+                        key: "tap-version"
+                  - name: "CLI_VERSION"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "platform"
+                        key: "cli-version"
+                  - name: "CORE_ORGANIZATION"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "platform"
+                        key: "core-organization"
+                  - name: "CDH_VERSION"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "platform"
+                        key: "cdh-version"
+                  - name: "K8S_VERSION"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "platform"
+                        key: "k8s-version"
+                  - name: "PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "api-service"
+                        key: "port"
+                  - name: "API_SERVICE_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "api-service"
+                        key: "user"
+                  - name: "API_SERVICE_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "api-service"
+                        key: "pass"
+                  - name: "BROKER_LOG_LEVEL"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "api-service"
+                        key: "broker-log-level"
+                  - name: "TEMPLATE_REPOSITORY_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "host"
+                  - name: "TEMPLATE_REPOSITORY_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "ssl-port"
+                  - name: "TEMPLATE_REPOSITORY_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "user"
+                  - name: "TEMPLATE_REPOSITORY_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "pass"
+                  - name: "GENERIC_APPLICATION_TEMPLATE_ID"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "generic-application-template-id"
+                  - name: "GENERIC_SERVICE_TEMPLATE_ID"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "template-repository"
+                        key: "generic-service-template-id"
+                  - name: "CATALOG_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "host"
+                  - name: "CATALOG_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "ssl-port"
+                  - name: "CATALOG_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "user"
+                  - name: "CATALOG_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "pass"
+                  - name: "CONTAINER_BROKER_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "host"
+                  - name: "CONTAINER_BROKER_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "ssl-port"
+                  - name: "CONTAINER_BROKER_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "user"
+                  - name: "CONTAINER_BROKER_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "container-broker"
+                        key: "pass"
+                  - name: "BLOB_STORE_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "blob-store"
+                        key: "host"
+                  - name: "BLOB_STORE_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "blob-store"
+                        key: "ssl-port"
+                  - name: "BLOB_STORE_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "blob-store"
+                        key: "user"
+                  - name: "BLOB_STORE_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "blob-store"
+                        key: "pass"
+                  - name: "IMAGE_FACTORY_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "image-factory"
+                        key: "host"
+                  - name: "IMAGE_FACTORY_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "image-factory"
+                        key: "ssl-port"
+                  - name: "IMAGE_FACTORY_USER"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "image-factory"
+                        key: "user"
+                  - name: "IMAGE_FACTORY_PASS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "image-factory"
+                        key: "pass"
+                  - name: "IMAGE_FACTORY_HUB_ADDRESS"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "image-factory"
+                        key: "hub-address"
+                  - name: "SSO_TOKEN_URI"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "sso"
+                        key: "token-uri"
+                  - name: "SSO_CHECK_TOKEN_URI"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "sso"
+                        key: "check-token-uri"
+                  - name: "SSO_CLIENT"
+                    value: "consoleSvc"
+                  - name: "SSO_SECRET"
+                    value: "{{ hostvars[groups['k8s-master'][0]].passwords.uaa.consolesvc_secret }}"
+                  - name: "USER_MANAGEMENT_HOST"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "user-management"
+                        key: "host"
+                  - name: "USER_MANAGEMENT_PORT"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "user-management"
+                        key: "port"
+                  - name: "VISUALISATIONS_LIST"
+                    value: "hue,hue-file-browser,hue-oozie-editor"
+                  - name: "DEFAULT_ORG"
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "platform"
+                        key: "core-org-uuid"
+                imagePullPolicy: "Always"
+            restartPolicy: "Always"
+            dnsPolicy: "ClusterFirst"
+    state: present
+
+- name: Api-service Create ingress
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: "api-service"
+        annotations:
+          useSsl: "true"
+          useExternalSsl: "{{ enable_external_ssl }}"
+      spec:
+        rules:
+          - host: "api.{{ tap_domain_name }}"
+            http:
+              paths:
+                - path: "/"
+                  backend:
+                    serviceName: "api-service"
+                    servicePort: 443

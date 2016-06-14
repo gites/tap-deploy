@@ -1,0 +1,8 @@
+log4j.rootCategory=INFO,SA
+root.logger=INFO,console,SA
+spark.root.logger=SA
+log4j.appender.SA=org.apache.log4j.net.SocketAppender
+log4j.appender.SA.Port=24555
+log4j.appender.SA.RemoteHost={{ logstash_clusterip }}
+log4j.appender.SA.ReconnectionDelay=10000
+log4j.appender.SA.Application=CDH.SPARK-GATEWAY-${user.dir}

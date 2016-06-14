@@ -1,0 +1,53 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Install KRB5 base dependencies
+  yum:
+    pkg: "{{ item }}"
+    state: installed
+  with_items:
+    - openssl-devel
+    - krb5-workstation
+    - krb5-server
+    - krb5-pkinit
+    - unzip
+
+- name: Create kerberos directory
+  file:
+    path: /var/kerberos/krb5kdc
+    state: directory
+    mode: 0700
+
+- name: Copy kdc.conf
+  template:
+    src: kdc.j2
+    dest: /var/kerberos/krb5kdc/kdc.conf
+
+- name: Unzip kerberos server
+  unarchive:
+    src: "{{ repo_host }}/files/kerberos-jwt-1.13.7-el7-x86_64.zip"
+    dest: /
+    remote_src: true
+
+- name: Create uaa cacert on host
+  copy:
+    content: "{{ hostvars[groups['k8s-ca'][0]]['jwt_public_keypart'] }}"
+    dest: /var/kerberos/krb5kdc/cf_key.pub
+    owner: root
+    mode: 0600
+

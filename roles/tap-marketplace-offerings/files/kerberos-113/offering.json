@@ -1,0 +1,200 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "kerberos-$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "spec": {
+                "volumes": null,
+                "containers": [
+                  {
+                    "name": "kerberos",
+                    "image": "$repository_uri/kubernetes/pause",
+                    "ports": [
+                      {
+                        "containerPort": 80,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "KRB_ENABLED",
+                        "valueFrom": {
+                          "configMapKeyRef": {
+                            "Name": "kerberos-tap-config",
+                            "key": "krb.enabled"
+                          }
+                        }
+                      },
+                      {
+                        "name": "KRB_KDC",
+                        "valueFrom": {
+                          "configMapKeyRef": {
+                            "Name": "kerberos-tap-config",
+                            "key": "krb.kdc"
+                          }
+                        }
+                      },
+                      {
+                        "name": "KRB_REALM",
+                        "valueFrom": {
+                          "configMapKeyRef": {
+                            "Name": "kerberos-tap-config",
+                            "key": "krb.realm"
+                          }
+                        }
+                      },
+                      {
+                        "name": "KRB_USER",
+                        "valueFrom": {
+                          "configMapKeyRef": {
+                            "Name": "kerberos-tap-config",
+                            "key": "krb.user"
+                          }
+                        }
+                      },
+                      {
+                        "name": "KRB_PASSWORD",
+                        "valueFrom": {
+                          "configMapKeyRef": {
+                            "Name": "kerberos-tap-config",
+                            "key": "krb.password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {
+            }
+          },
+          "status": {
+          }
+        }
+      ],
+      "ingresses": null,
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "kerberos-$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "ClusterIP",
+            "ports": [
+              {
+                "name": "rest",
+                "protocol": "TCP",
+                "port": 80
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {
+            }
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "kerberos-$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": null
+      }
+    ],
+    "hooks": null
+  },
+  "services": [{
+    "name": "kerberos-113",
+    "description": "Network authentication protocol service.",
+    "metadata":[
+    ],
+    "bindable": true,
+    "tags": [
+      "kerberos",
+      "authentication",
+      "security"
+    ],
+    "plans": [
+      {
+        "name": "shared",
+        "description": "Connection to existing Kerberos server shared by all TAP users.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

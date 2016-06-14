@@ -1,0 +1,21 @@
+stream {
+    server {
+        listen 80;
+        proxy_pass ingress;
+        error_log /dev/null;
+    }
+
+    upstream ingress {
+        server 127.0.0.1:30100;
+    }
+
+    server {
+        listen 443;
+        proxy_pass ingressssl;
+        error_log /dev/null;
+    }
+
+    upstream ingressssl {
+        server 127.0.0.1:30101;
+    }
+}

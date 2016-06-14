@@ -1,0 +1,10 @@
+*.pyc
+.idea
+*.retry
+files/repository.tar.gz
+tap.config
+tap.config.secrets
+connect
+logs/*
+./inventory/k8s
+*.iml

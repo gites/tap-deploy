@@ -1,0 +1,71 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Copy extensions.kdc
+  copy:
+    src: extensions.kdc
+    dest: /var/kerberos/krb5kdc/extensions.kdc
+
+- name: Generate certs
+  script: generate_cert.sh CLOUDERA creates=/var/kerberos/krb5kdc/PKINIT_SUCCESS
+
+- name: Create the initial kerberos database
+  shell: echo -e '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.master }}\n{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.master }}' |
+    kdb5_util create -s && touch /var/kerberos/krb5kdc/db_created creates=/var/kerberos/krb5kdc/db_created
+
+- name: Start kerberos
+  service:
+    name: krb5kdc
+    state: started
+    enabled: true
+
+- name: Copy kadmin configuration
+  copy: 
+    src: kadm5.acl 
+    dest: /var/kerberos/krb5kdc/kadm5.acl
+  notify: Restart kadmin
+
+- name: Start kadmin server
+  service:
+    name: kadmin
+    state: started
+    enabled: true
+
+- name: Create users
+  kadduser: 
+    name: "{{ item.name }}"
+    password: "{{ item.pass }}"
+    params: "{{ item.params }}"
+  with_items: "{{ kerberos.principals }}"
+
+- name: Create users for k8s apps
+  kadduser:
+    name: "{{ item.value.principal }}"
+    password: ""
+    params: "-randkey"
+  with_dict: "{{ kerberos.keytabs }}"
+
+- name: Add principals for master hosts
+  kadduser:
+    name: "host/{{ item }}"
+    password: ""
+    params: "-randkey"
+  with_items: "{{ groups['cdh-master'] }}"
+
+- name: Generate combined keytabs for each host
+  shell: kadmin.local -q 'xst -norandkey -k /etc/hosts.keytab {{ groups["cdh-master"] | add_prefix("host/") | join(" ") }}' creates=/etc/hosts.keytab

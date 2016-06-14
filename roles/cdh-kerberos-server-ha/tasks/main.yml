@@ -1,0 +1,58 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Create directory for kerberos dump history
+  file:
+    path: /var/kerberos/dumps
+    state: directory
+    mode: 0700
+    owner: root
+    group: root
+
+- name: Copy synchronize script
+  template:
+    src: synchronize.j2
+    dest: /usr/local/sbin/krb5-synchronize
+    mode: 0700
+    owner: root
+    group: root
+
+- name: Run synchronize script
+  shell: /usr/local/sbin/krb5-synchronize
+
+- name: Register cron job
+  cron:
+    name: krb5kdc sync
+    minute: "*/5"
+    job: /usr/local/sbin/krb5-synchronize > /dev/null
+
+- name: Register cron dump cloeanup job
+  cron:
+    name: krb5kdc job cleanup
+    hour: 23
+    minute: 0
+    job: "/bin/find /var/kerberos/dumps -ctime +7 -type f -delete > /dev/null"
+
+# We can start krb5kdc server after first synchronize
+- name: Run slave krb5kdc servers
+  service:
+    name: krb5kdc
+    state: started
+    enabled: true
+  delegate_to: "{{ item }}"
+  with_items: "{{ groups['cdh-master'] }}"

@@ -1,0 +1,226 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "spec": {
+                "volumes": [
+                  {
+                    "name": "data",
+                    "emptyDir": {}
+                  }
+                ],
+                "containers": [
+                  {
+                    "name": "cassandra21",
+                    "image": "$repository_uri/cassandra:v8",
+                    "command": ["/run.sh"],
+                    "ports": [
+                      {
+                        "containerPort": 9042,
+                        "protocol": "TCP",
+                        "name": "cql"
+                      },
+                      {
+                        "containerPort": 9160,
+                        "protocol": "TCP",
+                        "name": "thrift"
+                      }
+                    ],
+                    "volumeMounts": [
+                      {
+                        "mountPath": "/var/lib/cassandra/data",
+                        "name": "data"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "CASSANDRA_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-cassandra21-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "CASSANDRA_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-cassandra21-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      { "name": "CASSANDRA_SERVICE",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "name": "$short_instance_id-cassandra21-credentials",
+                            "key": "service"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "resources": {},
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 9042,
+                "name": "cql"
+              },
+              {
+                "protocol": "TCP",
+                "port": 9160,
+                "name": "thrift"
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-cassandra21-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "username": "$base64-$random1",
+            "password": "$base64-$random2",
+            "service": "$base64-$idx_and_short_serviceid"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "cassandra21",
+    "description": "Cassandra 2.1 service for application development and testing",
+    "metadata":[
+      {"key":"displayName","value": "Cassandra 2.1"},
+      {"key":"imageUrl","value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAABvFBMVEX///8AAABWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3TvKhT0AAAAk3RSTlMAAAEI9g/99TL+eEIQgN9E+hXrJfSqdpdwJy4JBtvYsV1ZCrX7K4qhPL0YbpigR9AO6AzNSM/FJLKLUWFBGgTJlZ/hzn60u41AuN3XUyLDfdE78zHgI39Fpx2metN0SelPLRfydcY69xmUUucFH4S6tlgC+epcYMzebU3uhUxe2U4eme0W5dZV2nscA/GPkNz4o0PM57t+AAAB8ElEQVR4Xu3WxW7kQBRG4SnbzZCmMDMzZ5iZmZmZmZnhvPCMrChy2yVVlTXLnN1dfLrbf8l/TXhbVum9zHBNNLE8JLY2AlXhsFUNkF0RCs/i1hoGJ4GVg7ClwRzPAWsjZ0rw2RgX98CaS0Ksg1yFIb42CbHOf8BuAidlhjNAiwvqYuDsNsGdHbB6/t2THDytNcC9cDUt5nvVAcfqtfEJYJtYaCmwShdbk7BBeBqARFwTDwF7vdhuhClN3AzrRVkTwIQWPpyATaK8zXBTC9fAVsuHe4DtOngH7BT+dkFSA49FoTaAz8F5DTwE+0Sg/RCNqPEBGBTBsnBQjQ9BvwQfgaNqPA4pCT4O3Wp8EooSfAqm1LgEaQk+DY1qDAhJfXA2NLYBNXZgTKa1cAH6QuNhuCCx9XBRjSuhRYLzUFDjDFyW4Dg0qXEFDEvwFZhR47YcXA/iG9ClxuIWJIO4F25r4FbI3vHbyF0SeQ1s34P7fvwAHmotgyQ8sn14HB5r4ZFReFZun4OT1sLiBUR7vLbtJXQJPWy1w+hrD34Db9OaWLx7Dx/yC7YK+Ki/DOIx+DQt3KwMUG0yaFIOFNwl86UdaP6qjV39Dfg+Mv0jBnQ3GI64up9ACeBXv/l8jPzGbaYYajL/AQbiYfc24KpFvIhD9xcTPb2tejzhLgAAAABJRU5ErkJggg=="},
+      {"key":"longDescription","value": "A Cassandra 2.1 service for development and testing running inside a Docker container"},
+      {"key":"providerDisplayName","value": "Pivotal Software"},
+      {"key":"documentationUrl","value": "http://docs.run.pivotal.io"},
+      {"key":"supportUrl","value": "http://support.run.pivotal.io/home"}
+    ],
+    "bindable": true,
+    "tags": [
+      "cassandra",
+      "cassandra21",
+      "k8s"
+    ],
+    "plans": [
+      {
+        "name": "free",
+        "description": "free",
+        "cost": "free"
+      }
+    ]
+  }]
+}

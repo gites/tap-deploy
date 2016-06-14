@@ -1,0 +1,98 @@
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  name: "catalog"
+  labels:
+    tap_app_type: CORE
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: catalog
+    spec:
+      containers:
+        - name: "nginx-ssl"
+          image: "{{ repository_uri }}/tap-nginx-dyn-stream:{{ tap_version }}"
+          volumeMounts:
+            - name: "catalog-certkey-volume"
+              mountPath: "/etc/nginx/ssl"
+          ports:
+            - containerPort: 443
+              protocol: "TCP"
+          imagePullPolicy: "Always"
+        - name: "catalog"
+          image: "{{ repository_uri }}/tap-catalog:{{ tap_version }}"
+          volumeMounts:
+            - name: "catalog-ca-pem-volume"
+              mountPath: "/etc/ssl/certs/ca.pem"
+              subPath: ca.pem
+              readOnly: true
+            - name: "catalog-ca-certificates-crt-volume"
+              mountPath: "/etc/ssl/certs/ca-certificates.crt"
+              subPath: ca-certificates.crt
+              readOnly: true
+            - name: "catalog-hashed-ca-volume"
+              mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+              subPath: "{{ ca_cert.json['hash'] }}.0"
+              readOnly: true
+          ports:
+            - containerPort: 80
+              protocol: "TCP"
+          resources:
+            limits:
+              memory: "{{ catalog_memory_limit }}"
+            requests:
+              memory: "{{ catalog_memory_limit }}"
+          env:
+            - name: "PORT"
+              valueFrom:
+                configMapKeyRef:
+                  name: "catalog"
+                  key: "port"
+            - name: "ETCD_CATALOG_ADDRESSES"
+              valueFrom:
+                configMapKeyRef:
+                  name: "etcd-catalog"
+                  key: "endpoints"
+            - name: "CATALOG_USER"
+              valueFrom:
+                configMapKeyRef:
+                  name: "catalog"
+                  key: "user"
+            - name: "CORE_ORGANIZATION"
+              valueFrom:
+                configMapKeyRef:
+                  name: "platform"
+                  key: "core-organization"
+            - name: "CATALOG_PASS"
+              valueFrom:
+                configMapKeyRef:
+                  name: "catalog"
+                  key: "pass"
+            - name: "BROKER_LOG_LEVEL"
+              valueFrom:
+                configMapKeyRef:
+                  name: "catalog"
+                  key: "broker-log-level"
+            - name: "METRICS_COLLECTING_FREQUENCY"
+              valueFrom:
+                configMapKeyRef:
+                  name: "catalog"
+                  key: "metrics-collecting-frequency"
+          imagePullPolicy: "Always"
+      volumes:
+        - name: "catalog-ca-pem-volume"
+          secret:
+            secretName: "platform-ca-root-cert"
+        - name: "catalog-ca-certificates-crt-volume"
+          secret:
+            secretName: "platform-ca-roots-bundle"
+        - name: "catalog-hashed-ca-volume"
+          secret:
+            secretName: "platform-ca-root-cert-hashed"
+        - name: "catalog-certkey-volume"
+          secret:
+            secretName: "catalog-certkey"
+      restartPolicy: "Always"
+      dnsPolicy: "ClusterFirst"

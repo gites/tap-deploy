@@ -1,0 +1,10 @@
+- delete_on_termination: True
+  device_name: /dev/sda1
+  volume_size: "{{ storage_size | default(100) | int }}"
+  volume_type: gp2
+{% for disk in (storage.devices | default([])) %}
+- delete_on_termination: True
+  device_name: "{{ disk.device }}"
+  volume_size: "{{ disk.size | default(200) | int }}"
+  volume_type: gp2
+{% endfor %}

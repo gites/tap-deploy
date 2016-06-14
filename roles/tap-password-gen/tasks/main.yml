@@ -1,0 +1,261 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Generate and store secrets.
+#
+# This role generates passwords that will be used by platform components.
+# Already generated passwords will be stored in one place and won't be
+# regenarated after subsequent ansible runs.
+#
+###
+---
+
+- name: Get current facts
+  set_fact: passwords="{{ (ansible_local | default({})).managed_passwords | default({}) }}"
+
+- name: Generate all mysql facts
+  set_fact: passwords="{{ passwords | pass_manager('databases', item.key, '' | rand_password) }}"
+  with_dict: "{{ database.databases }}"
+  when: cdh_enabled and (item.value.password | default('') == '' or item.value.password is none)
+
+- name: Generate mysql main password
+  set_fact: passwords="{{ passwords | pass_manager('databases', 'database', '' | rand_password) }}"
+  when: cdh_enabled and (database.password | default('') == '' or database.password is none)
+
+- name: Generate kerberos main password
+  set_fact: passwords="{{ passwords | pass_manager('kerberos', 'master', '' | rand_password) }}"
+  when: cdh_enabled and (master_krb_pass | default('') == '' or master_krb_pass is none)
+
+- name: Generate kerberos CDH password
+  set_fact: passwords="{{ passwords | pass_manager('kerberos', 'cdh', '' | rand_password) }}"
+  when: cdh_enabled and (cdh_krb_pass | default('') == '' or cdh_krb_pass is none)
+
+- name: Generate ceph broker pass
+  set_fact: passwords="{{ passwords | pass_manager('k8s', 'ceph_broker_pass', '' | rand_password) }}"
+  when: ceph_broker_pass | default('') == '' or ceph_broker_pass is none
+
+- name: Generate kerberos broker password
+  set_fact: passwords="{{ passwords | pass_manager('kerberos', 'broker', '' | rand_password) }}"
+  when: cdh_enabled and (broker_cdh_pass | default('') == '' or broker_cdh_pass is none)
+
+- name: Generate kerberos tap password
+  set_fact: passwords="{{ passwords | pass_manager('kerberos', 'tap', '' | rand_password) }}"
+  when: cdh_enabled and (tap_cdh_pass | default('') == '' or tap_cdh_pass is none)
+
+- name: generate ws postgres pass
+  set_fact: passwords="{{ passwords | pass_manager('applications', 'ws_postgres_pass', '' | rand_password) }}"
+  when: ws_postgres_pass | default('') == '' or ws_postgres_pass is none
+
+- name: generate platform snapshot postgres pass
+  set_fact: passwords="{{ passwords | pass_manager('applications', 'psnapshot_postgres_pass', '' | rand_password) }}"
+  when: psnapshot_postgres_pass | default('') == '' or psnapshot_postgres_pass is none
+
+- name: generate zabbix postgres pass
+  set_fact: passwords="{{ passwords | pass_manager('zabbix', 'zabbix_postgres_pass', '' | rand_password) }}"
+  when: zabbix_postgres_pass | default('') == '' or zabbix_postgres_pass is none
+
+- name: Generate UAA cipher key
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'cipher_key', '' | rand_password(16)) }}"
+  when: uaa.cipher_key | default('') == '' or uaa.cipher_key is none
+
+- name: Generate UAA hash salt
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'hash_salt', '' | rand_password) }}"
+  when: uaa.hash_salt | default('') == '' or uaa.hash_salt is none
+
+- name: Generate UAA postgres pass
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'uaa_postgres_pass', '' | rand_password) }}"
+  when: uaa_postgres_pass | default('') == '' or uaa_postgres_pass is none
+
+- name: Generate Admin secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'admin_secret', '' | rand_password) }}"
+  when: uaa.admin_secret | default('') == '' or uaa.admin_secret is none
+
+- name: Generate consolesvc secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'consolesvc_secret', '' | rand_password) }}"
+  when: uaa.consolesvc_secret | default('') == '' or uaa.consolesvc_secret is none
+
+- name: Generate login secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'login_secret', '' | rand_password) }}"
+  when: uaa.login_secret | default('') == '' or uaa.login_secret is none
+
+- name: Generate console client id
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'console_client', 'console-' + ('' | rand_password(5))) }}"
+
+- name: Generate console secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'console_secret', '' | rand_password) }}"
+  when: uaa.console_secret | default('') == '' or uaa.console_secret is none
+
+- name: Generate Grafana UAA secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'grafana_secret', '' | rand_password) }}"
+  when: uaa.grafana_secret | default('') == '' or uaa.grafana_secret is none
+
+- name: Generate Grafana admin password
+  set_fact: passwords="{{ passwords | pass_manager('grafana', 'admin_password', '' | rand_password) }}"
+  when: grafana.admin_password | default('') == '' or grafana.admin_password is none
+
+- name: Generate hue secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'hue_secret', '' | rand_password) }}"
+  when: uaa.hue_secret | default('') == '' or uaa.hue_secret is none
+
+- name: Generate kibana secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'kibana_secret', '' | rand_password) }}"
+  when: uaa.kibana_secret | default('') == '' or uaa.kibana_secret is none
+
+- name: Generate user-management cipher key
+  set_fact: passwords="{{ passwords | pass_manager('user_management', 'cipher_key', '' | rand_password(16)) }}"
+  when: user_management.cipher_key | default('') == '' or user_management.cipher_key is none
+
+- name: Generate user-management hash salt
+  set_fact: passwords="{{ passwords | pass_manager('user_management', 'hash_salt', '' | rand_password) }}"
+  when: user_management.hash_salt | default('') == '' or user_management.hash_salt is none
+
+- name: Generate key-counter user
+  set_fact: passwords="{{ passwords | pass_manager('key_counter', 'user', '' | rand_password) }}"
+  when: key_counter.user | default('') == '' or key_counter.user is none
+
+- name: Generate key-counter pass
+  set_fact: passwords="{{ passwords | pass_manager('key_counter', 'pass', '' | rand_password) }}"
+  when: key_counter.pass | default('') == '' or key_counter.pass is none
+
+- name: Generate ca-service password
+  set_fact: passwords="{{ passwords | pass_manager('ca_service', 'pass', '' | rand_password) }}"
+  when: ca_service.pass | default('') == '' or ca_service.pass is none
+
+- name: generate auth_gateway_zk_password postgres pass
+  set_fact: passwords="{{ passwords | pass_manager('authgateway', 'zk_user_pass', '' | rand_password) }}"
+  when: zk_user_pass | default('') == '' or zk_user_pass is none
+
+- name: Generate DAS cipher key
+  set_fact: passwords="{{ passwords | pass_manager('das', 'cipher_key', '' | rand_password(16)) }}"
+  when: das.cipher_key | default('') == '' or das.cipher_key is none
+
+- name: Generate platform-tests mognodb password
+  set_fact: passwords="{{ passwords | pass_manager('platform_tests', 'mongodb_pass', '' | rand_password) }}"
+  when: platform_tests_mongodb_pass | default('') == '' or platform_tests_mongodb_pass is none
+
+- name: Generate h2o-se-publisher user
+  set_fact: passwords="{{ passwords | pass_manager('h2o_se_publisher', 'user', '' | rand_password) }}"
+  when: h2o_se_publisher.user | default('') == '' or h2o_se_publisher.user is none
+
+- name: Generate h2o-se-publisher pass
+  set_fact: passwords="{{ passwords | pass_manager('h2o_se_publisher', 'pass', '' | rand_password) }}"
+  when: h2o_se_publisher.pass | default('') == '' or h2o_se_publisher.pass is none
+
+- name: Create facts directory
+  file: path=/etc/ansible/facts.d owner=root mode=0600 state=directory
+
+- name: Save generated passwords on manager
+  template: dest=/etc/ansible/facts.d/managed_passwords.fact src="passwords.ini.j2" owner=root mode=0600
+
+- name: Reload facts after generating passwords
+  action: setup
+
+- name: Add all mysql facts
+  set_fact: passwords="{{ passwords | pass_manager('databases', item.key, item.value.password) }}"
+  with_dict: "{{ database.databases }}"
+  when: cdh_enabled
+
+- name: Add mysql main password
+  set_fact: passwords="{{ passwords | pass_manager('databases', 'database', database.password) }}"
+  when: cdh_enabled
+
+- name: Add kerberos main password
+  set_fact: passwords="{{ passwords | pass_manager('kerberos', 'master', master_krb_pass) }}"
+  when: cdh_enabled
+
+- name: Add kerberos CDH password
+  set_fact: passwords="{{ passwords | pass_manager('kerberos', 'cdh', cdh_krb_pass) }}"
+  when: cdh_enabled
+
+- name: Generate ceph broker pass
+  set_fact: passwords="{{ passwords | pass_manager('k8s', 'ceph_broker_pass', ceph_broker_pass | rand_password) }}"
+  when: ceph_broker_pass | default('') == '' or ceph_broker_pass is none
+
+- name: Add broker kerberos password
+  set_fact: passwords="{{ passwords | pass_manager('kerberos', 'broker', broker_cdh_pass) }}"
+  when: cdh_enabled
+
+- name: Add tap kerberos password
+  set_fact: passwords="{{ passwords | pass_manager('kerberos', 'tap', tap_cdh_pass) }}"
+  when: cdh_enabled
+
+- name: Add workflow-scheduler postgres password
+  set_fact: passwords="{{ passwords | pass_manager('applications', 'ws_postgres_pass', ws_postgres_pass) }}"
+
+- name: Add platform-snapshot postgres password
+  set_fact: passwords="{{ passwords | pass_manager('applications', 'psnapshot_postgres_pass', psnapshot_postgres_pass) }}"
+
+- name: Add zabbix postgres password
+  set_fact: passwords="{{ passwords | pass_manager('zabbix', 'zabbix_postgres_pass', zabbix_postgres_pass) }}"
+
+- name: Add UAA cipher key
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'cipher_key', uaa.cipher_key) }}"
+
+- name: Add UAA hash salt
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'hash_salt', uaa.hash_salt) }}"
+
+- name: Add UAA postgres pass
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'uaa_postgres_pass', uaa_postgres_pass) }}"
+
+- name: Add UAA admin secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'admin_secret', uaa.admin_secret) }}"
+
+- name: Add UAA consolesvc secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'consolesvc_secret', uaa.consolesvc_secret) }}"
+
+- name: Add UAA login secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'login_secret', uaa.login_secret) }}"
+
+- name: Add UAA console secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'console_secret', uaa.console_secret) }}"
+
+- name: Add UAA hue secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'hue_secret', uaa.hue_secret) }}"
+
+- name: Add UAA kibana secret
+  set_fact: passwords="{{ passwords | pass_manager('uaa', 'kibana_secret', uaa.kibana_secret) }}"
+
+- name: Add user-management cipher key
+  set_fact: passwords="{{ passwords | pass_manager('user_management', 'cipher_key', user_management.cipher_key) }}"
+
+- name: Add user-management hash salt
+  set_fact: passwords="{{ passwords | pass_manager('user_management', 'hash_salt', user_management.hash_salt) }}"
+
+- name: Add key-counter user
+  set_fact: passwords="{{ passwords | pass_manager('key_counter', 'user', key_counter.user) }}"
+
+- name: Add key-counter pass
+  set_fact: passwords="{{ passwords | pass_manager('key_counter', 'pass', key_counter.pass) }}"
+
+- name: Add auth-gateway zookeeper password
+  set_fact: passwords="{{ passwords | pass_manager('authgateway', 'zk_user_pass', zk_user_pass) }}"
+
+- name: Add DAS cipher key
+  set_fact: passwords="{{ passwords | pass_manager('das', 'cipher_key', das.cipher_key) }}"
+
+- name: Add ca-service password
+  set_fact: passwords="{{ passwords | pass_manager('ca_service', 'pass', ca_service.pass) }}"
+
+- name: Add platform-tests mongodb password
+  set_fact: passwords="{{ passwords | pass_manager('platform_tests', 'mongodb_pass', platform_tests_mongodb_pass | default('')) }}"
+
+- name: Add h2o-se-publisher user
+  set_fact: passwords="{{ passwords | pass_manager('h2o_se_publisher', 'user', h2o_se_publisher.user) }}"
+
+- name: Add h2o-se-publisher pass
+  set_fact: passwords="{{ passwords | pass_manager('h2o_se_publisher', 'pass', h2o_se_publisher.pass) }}"

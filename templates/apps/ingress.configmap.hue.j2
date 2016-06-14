@@ -1,0 +1,21 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nginx-ingress
+data:
+  hue.conf: |
+    server {
+
+      {% if enable_external_ssl == 'true' %}
+        listen 443 ssl;
+        include ssl.conf;
+      {% else %}
+        listen 80;
+      {% endif %}
+
+      server_name "hue.{{ tap_domain_name }}";
+      location / {
+        proxy_set_header Host $host;
+        proxy_pass "{{ external_protocol  }}://{{ groups['cdh-manager'][0] }}:8888";
+      }
+    }

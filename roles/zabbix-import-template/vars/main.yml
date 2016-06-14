@@ -1,0 +1,74 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+auth_id_body:
+  jsonrpc: 2.0
+  method: user.login
+  id: 0
+  auth: null
+  params:
+    user: "{{ zabbix_server.user_name }}"
+    password: "{{ zabbix_server.user_pass }}"
+
+import_templ_body:
+  jsonrpc: 2.0
+  method: configuration.import
+  id: 5
+  auth: "{{ zabbix_auth_id_user.json.result }}"
+  params:
+    format: xml
+    rules:
+      templates:
+        createMissing: true
+        updateExisting: true
+      images:
+        createMissing: true
+        updateExisting: true
+      groups:
+        createMissing: true
+      triggers:
+        createMissing: true
+        updateExisting: true
+      valueMaps:
+        createMissing: true
+        updateExisting: true
+      hosts:
+        createMissing: true
+        updateExisting: true
+      items:
+        createMissing: true
+        updateExisting: true
+      maps:
+        createMissing: true
+        updateExisting: true
+      screens:
+        createMissing: true
+        updateExisting: true
+      templateScreens:
+        createMissing: true
+        updateExisting: true
+      templateLinkage:
+        createMissing: true
+      applications:
+        createMissing: true
+        updateExisting: true
+      graphs:
+        createMissing: true
+        updateExisting: true
+      discoveryRules:
+        createMissing: true
+        updateExisting: true
+    source: "{{ lookup('file', 'zbx_export_templates.xml') }}"

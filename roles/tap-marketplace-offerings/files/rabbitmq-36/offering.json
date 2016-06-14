@@ -1,0 +1,335 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-small"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "2048",
+                  "volume_name": "rabbitmq-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes":[],
+                "containers": [
+                  {
+                    "name": "rabbitmq36",
+                    "image": "$repository_uri/rabbitmq:3.6",
+                    "volumeMounts":[
+                      {
+                        "mountPath": "/var/lib/rabbitmq",
+                        "name": "rabbitmq-persistent-storage"
+                      }
+                    ],
+                    "ports": [
+                      {
+                        "containerPort": 5672,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 15672,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "RABBITMQ_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-rabbitmq36-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "RABBITMQ_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-rabbitmq36-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "512M"
+                      },
+                      "limits": {
+                        "memory": "512M"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        },
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-medium"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "10240",
+                  "volume_name": "rabbitmq-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes":[],
+                "containers": [
+                  {
+                    "name": "rabbitmq36",
+                    "image": "$repository_uri/rabbitmq:3.6",
+                    "volumeMounts":[
+                      {
+                        "mountPath": "/var/lib/rabbitmq",
+                        "name": "rabbitmq-persistent-storage"
+                      }
+                    ],
+                    "ports": [
+                      {
+                        "containerPort": 5672,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 15672,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "RABBITMQ_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-rabbitmq36-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "RABBITMQ_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-rabbitmq36-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "2Gi"
+                      },
+                      "limits": {
+                        "memory": "2Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 5672,
+                "name":"client"
+              },
+              {
+                "port": 15672,
+                "protocol": "TCP",
+                "name":"transport"
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-rabbitmq36-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "username": "$base64-$random1",
+            "password": "$base64-$random2"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "rabbitmq-36",
+    "description": "Reliable, multi-protocol message broker that implements Advanced Message Queuing Protocol.",
+    "metadata":[
+      {"key":"displayName","value": "RabbitMQ 3.6"},
+      {"key":"imageUrl","value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAAAUVBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RuH96cAAAAGnRSTlMAAAUPEBkwN0tQY3CQoK+wwMnK0N3g7O7w9KTmSYcAAACLSURBVHhe7dfXCoQwEEbhWNcYNZY1lvd/UM2wZECxrQXUOZc/fHchIcza0atxi/msT+BQsGEHYyV1X8QZDOtwCnuEmAO4MSZMmPAvxONOwaE0fQDLYWoaL5fOYcIeNwWbMW9N9eU4EbrqPyzAlJdgwnmsawDf5YTZrsl5wmVAWMmplp+b9e3EL/4adTF8SfJrqMLuAAAAAElFTkSuQmCC"},
+      {"key":"longDescription","value": "Reliable, multi-protocol message broker that implements Advanced Message Queuing Protocol."},
+      {"key":"providerDisplayName","value": "Ferran Rodenas"},
+      {"key":"documentationUrl","value": "https://github.com/frodenas/docker-rabbitmq/blob/master/README.md"},
+      {"key":"supportUrl","value": "https://github.com/frodenas/docker-rabbitmq"}
+    ],
+    "bindable": true,
+    "tags": [
+      "rabbitmq",
+      "streaming"
+    ],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated RabbitMQ 3.6 broker server. Resources used: 1 compute node, 512 MB RAM and 2 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      },
+      {
+        "name": "single-medium",
+        "description": "Create dedicated RabbitMQ 3.6 broker server. Resources used: 1 compute node, 2 GB RAM and 10 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

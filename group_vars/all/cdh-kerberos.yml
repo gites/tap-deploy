@@ -1,0 +1,51 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+master_krb_pass: 
+cdh_krb_pass: 
+
+kerberos_enabled: true
+
+kerberos:
+  server: "{{ hostvars[groups['cdh-manager'][0]]['ansible_fqdn'] }}"
+  enabled: "{{ kerberos_enabled }}"
+  ticket:
+    lifetime: 30d
+    renewtime: 60d
+  principals:
+    - { name: 'cloudera-scm/admin', pass: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.cdh }}', params: '-requires_preauth' }
+    - { name: 'kadmin/admin', pass: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.master }}', params: '-requires_preauth' }
+    - { name: 'hdfs/cloudera', pass: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.cdh }}', params: '-requires_preauth' }
+    - { name: 'hive/cloudera', pass: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.cdh }}', params: '-requires_preauth' }
+    - { name: 'broker/sys', pass: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.broker }}', params: '-requires_preauth' }
+    - { name: 'tap/sys', pass: '{{ hostvars[groups["k8s-master"][0]].passwords.kerberos.tap }}', params: '-requires_preauth' }
+    - { name: 'WELLKNOWN/ANONYMOUS', pass: '', params: '-randkey +requires_preauth' }
+    - { name: 'default_jwt', pass: '', params: '-randkey +requires_preauth' }
+  keytabs:
+    broker:
+      principal: broker/sys
+    hgm:
+      principal: hgm/sys
+    warehouse:
+      principal: hive/sys
+    sentry:
+      principal: sentry/sys
+    hdfs:
+      principal: hdfs
+    authgateway:
+      principal: authgateway/sys

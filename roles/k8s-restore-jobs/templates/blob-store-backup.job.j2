@@ -1,0 +1,49 @@
+apiVersion: extensions/v1beta1
+kind: Job
+metadata:
+  name: "blob-store-backup"
+spec:
+  template:
+    metadata:
+      name: blob-store-backup
+      labels:
+        backup: blob-store-backup
+    spec:
+      containers:
+        - name: minio
+          image: "{{ repository_uri }}/tap-blob-store/minio:{{ tap_version }}"
+          command: ["uptime"]
+          ports:
+            - containerPort: 9000
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /opt/app/store
+              name: blob-store-backup
+          env:
+            - name: MINIO_STORAGE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: minio
+                  key: storage-path
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: access-key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio
+                  key: secret-key
+      volumes:
+        - name: blob-store-backup
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: blob-store-backup
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+      restartPolicy: "Never"

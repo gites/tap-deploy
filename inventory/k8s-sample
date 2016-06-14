@@ -1,0 +1,65 @@
+[jumpbox]
+ip-10-0-0-89.ec2.internal ansible_host=10.0.0.89 ansible_user=centos
+
+[nat]
+ip-10-0-0-213.ec2.internal ansible_host=10.0.0.213 ansible_user=ec2-user
+
+[k8s-master]
+master.kubernetes.cluster.local  ansible_host=10.0.1.155 ansible_user=centos
+
+[k8s-worker]
+master.kubernetes.cluster.local  ansible_host=10.0.1.155 ansible_user=centos
+
+[k8s-ca]
+master.kubernetes.cluster.local  ansible_host=10.0.1.155 ansible_user=centos
+
+[k8s-etcd]
+master.kubernetes.cluster.local ansible_host=10.0.1.155 ansible_user=centos
+
+[k8s-all:children]
+k8s-ca
+k8s-etcd
+k8s-master
+k8s-worker
+
+[k8s-node:children]
+k8s-master
+k8s-worker
+cdh-manager
+
+[cdh-manager]
+manager.cdh.cluster.local ansible_host=10.0.3.18 ansible_user=centos
+
+[cdh-master]
+master-0.cdh.cluster.local ansible_host=10.0.3.214 ansible_user=centos
+master-1.cdh.cluster.local ansible_host=10.0.3.213 ansible_user=centos
+
+[cdh-worker]
+worker-0.cdh.cluster.local ansible_host=10.0.3.162 ansible_user=centos
+worker-1.cdh.cluster.local ansible_host=10.0.3.164 ansible_user=centos
+worker-2.cdh.cluster.local ansible_host=10.0.3.163 ansible_user=centos
+
+[cdh-master-group:children]
+cdh-manager
+cdh-master
+
+[cdh-all:children]
+cdh-manager
+cdh-master
+cdh-worker
+
+[ca-client:children]
+cdh-all
+k8s-node
+k8s-etcd
+
+[osds]
+master.kubernetes.cluster.local  ansible_host=10.0.1.155 ansible_user=centos
+
+[mons]
+master.kubernetes.cluster.local  ansible_host=10.0.1.155 ansible_user=centos
+
+
+[clients:children]
+k8s-master
+k8s-worker

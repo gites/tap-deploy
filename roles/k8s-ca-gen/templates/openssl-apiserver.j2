@@ -1,0 +1,17 @@
+[req]
+default_bits = 2048
+default_md = sha256
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+[req_distinguished_name]
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = $ENV::NODE_DNS
+DNS.2 = kubernetes
+DNS.3 = kubernetes.default
+DNS.4 = kubernetes.default.svc
+DNS.5 = kubernetes.default.svc.{{ local_domain }}
+IP.1 = {{ k8s_service_ip_range | ipaddr('net') | ipaddr('1') }}

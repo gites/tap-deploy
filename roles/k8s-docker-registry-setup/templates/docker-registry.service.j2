@@ -1,0 +1,15 @@
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: docker-registry
+  name: docker-registry
+  namespace: kube-system
+spec:
+  clusterIP: "{{ dr_clusterip }}"
+  ports:
+  - name: docker-registry
+    port: 5000
+    protocol: TCP
+  selector:
+    app: docker-registry

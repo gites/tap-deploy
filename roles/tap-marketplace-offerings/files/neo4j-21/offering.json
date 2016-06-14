@@ -1,0 +1,271 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-small"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "10240",
+                  "volume_name": "neo4j21-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": [],
+                "containers": [
+                  {
+                    "name": "neo4j21",
+                    "image": "$repository_uri/frodenas/neo4j:2.1",
+                    "ports": [
+                      {
+                        "containerPort": 7474,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                     
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "volumeMounts":[
+                      {
+                        "mountPath": "/data",
+                        "name": "neo4j21-persistent-storage"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "2Gi"
+                      },
+                      "limits": {
+                        "memory": "2Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        },
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-medium"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "102400",
+                  "volume_name": "neo4j21-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": [],
+                "containers": [
+                  {
+                    "name": "neo4j21",
+                    "image": "$repository_uri/frodenas/neo4j:2.1",
+                    "ports": [
+                      {
+                        "containerPort": 7474,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "volumeMounts":[
+                      {
+                        "mountPath": "/data",
+                        "name": "neo4j21-persistent-storage"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "6Gi"
+                      },
+                      "limits": {
+                        "memory": "6Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 7474
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": []
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "neo4j-21",
+    "description": "Highly scalable, transactional database with native graph storage and processing.",
+    "metadata":[
+      {"key":"displayName","value": "Neo4j 2.1"},
+      {"key":"imageUrl","value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACmlBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RfNoVbAAAA3XRSTlMAAAECAwQFBgcICQoLDA0ODxASExQVFhcYGhscHR4gIyQlJicoKSosLS4wMTIzNDU2Nzg5Ojs8PT5AQUJDREVGR0hJSkxNTlBRU1RVVldYWVxdXl9gYWJjZGVmaGlqa21ub3Byc3R1dnd4eXp7fICBgoOEhYaJi4yNjo+QkZKTlJaXmJmbnJ2en6ChoqOlpqeoqaqrrK2ur7Cys7S1tre4uru9vr/AwcLDxsfJysvNzs/Q0dLT1NXY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fL09fb3+Pn6+/z9/kplkcgAAAQ9SURBVHhepdT5XxR1HMfxT8vtQUIoFUmpQCVBimIqHRq0kSYelKWdWJAaQmkYiUd4RRZZlpmh4hEGkamkdCimadaKKCy7HLv7+l/i4ezMzuzOED14/f58zPeHz3vktmE0gEXJllt7Ce/VuuWjZUjpcVoz/hyLwzOWbdzXePr09wc3F82I+m+c4yRQD7pchwrHDI4fcAFtZfY5rx4lNOfm5EFw2GngPeWBT14HvGfrtlVVbd/b4lJ4/4Y4SzwfeFf8ZfbAQfEXkVV6BgDHU1b4APwaIWoV4B0rgdJrPQAfRpnjLlgpWilAvuibdBDgWJwZjgMek0D9UCSGxm/rBVq2LBoXghOAR3S4F1bo6dyjPvx5vs0KwuF9sDxgJwKLAjSpHkO74w1YmuB4AJcDEzU7qwOgt6Hq7TVbfvAAXJ5swMXAfNVOckKLZuf0AVde9x/ZuNUdQGemHq8DXHkKSD0PPKva+7uBHbGilbAPcCQFcJIbgC8ejx/1cKUbqLP5bWQrUCz6bJXAdzYNV4MXXc3aEkqACjFm+xRYoOKxbvio4AZqNaNUG+OAn8IlqFEXodXmx8XgmyQJay8CdNRmidYCYJaEVAhk+/FJOHwL3DNj+r2G79TCWQkt0gHrFXw3sFhMuwRrxaQaaFLwEvDdYWpHAHYz/ApcV/AmOCWmJQHpZtgOKLgBdpjjZGCyGc7V8AUoMce3AzlmuBC6FeyGAjGvA94ww5XQomDAboHr4YgZboUdGp5rgVeA975QOx14WsEuWGCBE/vgsxBra4Br0Qq+CsvEoq1AfjB+DVglCj4J661w4k1wTjVaex+cj/HjXVAvVhUA3fMM19UH/dPEj0ugPdxSvwPwZapKHzoC8JyoeCowTSwrA/AdX5WbnmEv+xGgf8CqOOwfqBDr8tsx5HleAlh2giM6AMKyV27fU1OeN1LV8VVOdDlH6HGWftAxJX+i1FWVqPIxL3z1hw88v+/uho9Fj+UEtEUpdso5At3U33xUfFyElAKZRvwM6rDsPQB/H9r1zW8AlAYN3An1YsTSCK5UEZnZBxybGSYDpX3iA1424APgSw/GGV5oiZa4v8D7kqjN7oDeNJ0tAqolGEsFsNu2AVgqgTLdhuOb0w8XYkNxZBOw0wVfi75i4EHtIU7onSKhWO68CAApBhx1Bdape3ABS8QMy4RrEPob3QiNt2h4mRcoEXMsqZeB6tBROWSgtCaAYrHCktQJ5UF4NvSIjK/2KMu0xnIC3g/CeXDjiT39AC0pMhjeCweCcAl4AOheEymD4rfAPdqIGwHAvfUukcHxxJBjzgbgl9XavKyxHIauCTobcwo639QOdHCc6YVzyZoduV85i6FhKQfal0YodtbPwD7bkLGtFqDtg4WPzittBmiOlSFjCa9A3/4xMhSslXMKtasv2uT/YbHlVJ/pxdv2+cIYFVjjYTQs/C9zNu63Rctz6gAAAABJRU5ErkJggg=="},
+      {"key":"longDescription","value": "Highly scalable, transactional database with native graph storage and processing."},
+      {"key":"providerDisplayName","value": "Ferran Rodenas"},
+      {"key":"documentationUrl","value": "https://github.com/frodenas/docker-neo4j/blob/master/README.md"},
+      {"key":"supportUrl","value": "https://github.com/frodenas/docker-neo4j"}
+    ],
+    "bindable": true,
+    "tags": [
+      "neo4j",
+      "graph",
+      "graph-database",
+      "database"
+    ],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated Neo4j 2.1 database server. Resources used: 1 compute node, 2 GB RAM and 10 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      },
+      {
+        "name": "single-medium",
+        "description": "Create dedicated Neo4j 2.1 database server. Resources used: 1 compute node, 6 GB RAM and 100 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

@@ -1,0 +1,449 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-small"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+	        "annotations": {
+                "volume_read_only": "false",
+                "volume_size_mb": "20480",
+                "volume_name": "elastic-small-storage"
+		}
+              },
+              "spec": {
+                "volumes": [],
+                "containers": [
+                  {
+                    "name": "elasticsearch24-small",
+                    "image": "$repository_uri/docker-elasticsearch-kubernetes:2.4.0",
+                    "volumeMounts":[
+                      {
+                        "mountPath": "/data",
+                        "name": "elastic-small-storage"
+                      }
+		     ],
+                    "ports": [
+                      {
+                        "containerPort": 9200,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 9300,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "KUBERNETES_CA_CERTIFICATE_FILE",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "kubernetes-ca-certificate-file"
+                          }
+                        }
+                      },
+                      {
+                        "name": "DISCOVERY_SERVICE",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "discovery-service"
+                          }
+                        }
+                      },
+                      {
+                        "name": "NODE_MASTER",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "node-master"
+                          }
+                        }
+                      },
+                      {
+                        "name": "NODE_DATA",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "node-data"
+                          }
+                        }
+                      },
+                      {
+                        "name": "CLUSTER_NAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "cluster-name"
+                          }
+                        }
+                      },
+                      {
+                        "name": "USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "DBNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "dbname"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "2Gi"
+                      },
+                      "limits": {
+                        "memory": "2Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        },
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-medium"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+              "annotations": {
+                "volume_read_only": "false",
+                "volume_size_mb": "204800",
+                "volume_name": "elastic-medium-storage"
+                }
+              },
+              "spec": {
+                "volumes": null,
+                "containers": [
+                  {
+                    "name": "elasticsearch24-medium",
+                    "image": "$repository_uri/docker-elasticsearch-kubernetes:2.4.0",
+                    "volumeMounts":[
+                      {
+                        "mountPath": "/data",
+                        "name": "elastic-medium-storage"
+                      }
+		     ],
+                    "ports": [
+                      {
+                        "containerPort": 9200,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 9300,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "KUBERNETES_CA_CERTIFICATE_FILE",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "kubernetes-ca-certificate-file"
+                          }
+                        }
+                      },
+                      {
+                        "name": "DISCOVERY_SERVICE",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "discovery-service"
+                          }
+                        }
+                      },
+                      {
+                        "name": "NODE_MASTER",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "node-master"
+                          }
+                        }
+                      },
+                      {
+                        "name": "NODE_DATA",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "node-data"
+                          }
+                        }
+                      },
+                      {
+                        "name": "CLUSTER_NAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "cluster-name"
+                          }
+                        }
+                      },
+                      {
+                        "name": "USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      {
+                        "name": "DBNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-elasticsearch24-credentials",
+                            "key": "dbname"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "12Gi"
+                      },
+                      "limits": {
+                        "memory": "12Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "name": "rest",
+                "protocol": "TCP",
+                "port": 9200
+              },
+              {
+                "name": "transport",
+                "protocol": "TCP",
+                "port": 9300
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-elasticsearch24-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "password": "$base64-$random1",
+            "username": "$base64-$random2",
+            "dbname": "$base64-$random3",
+            "cluster-name": "$base64-$random3",
+            "kubernetes-ca-certificate-file": "JGJhc2U2NC0vdmFyL3J1bi9zZWNyZXRzL2t1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvY2EuY3J0",
+            "node-master": "dHJ1ZQ==",
+            "node-data": "dHJ1ZQ==",
+            "discovery-service": "JGJhc2U2NC0kc2hvcnRfc2VydmljZWlk"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "elasticsearch-24",
+    "description": "Distributed, multitenant-capable full-text search engine.",
+    "metadata":[
+      {"key": "displayName", "value":  "Elasticsearch 2.4.0"},
+      {"key": "imageUrl", "value":  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACu1BMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RmW6UOAAAA6HRSTlMAAAECAwQFBgcICQoLDA0ODxARExQVFhcYGRobHB4fICEjJCUnKCorLS4vMDEyMzY3ODk6Ozw9Pj9AQUJERUZHSElKS0xNTk9QUVJTVFVYWltcXV5fYGFiY2RmZ2hpa2xtbm9wcXJzdHV2d3l6e3x9f4CBgoOEhYaHiImKi4yNjo+QkZKUlpeYmpucnZ6foKGio6SlpqeoqaqrrK2ur7CytLW2t7i5uru9vsDBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8/T19vf4+fr7/P3+ki7nHgAABHRJREFUeF6l1flXVHUYgPHXGZghEDfMcMtCs1zKfctCLcstBZcsUUtSwzZFzaU0JS2nbCMtNReUJVs0Q8MFF9SUUsASaWQVkGXm+TO6Xodh7ny/eTin58d75nPm3PfMvK+0+h9JK7lHYc9sPuL2UHflQFIvUbonjlrjprmjE20tx7ZXywEovXTmLy8Ah3q1FLdLB7xp8V3FKHxUihu4FdcyfP8ZYG9P8ReeVAUk3QNHzs+87qn5/atxkaegeppYeigHmPOfeG4ZviqhcqAEFZEO9QP02LENgFovAA3DRBSdDZfCtPhz4FRcRwkdsKUeVoqmbuXwhg7HAUttYrYZ5ouuBVByn4qdRbCsCbwNyar0fWqaiifAWXsTSICPRdty2KdiF7wsTT0Pu/S4H5TZFPwr9PDjQXBYj22V8KCCz4LDj2Pgoug7ASMUfAK6+HFruCn6foCJCt4FM8VfLYTq8SEYH4Sd864DOa9E+UABdNbj8zDYinufxoy6vRPMN8+BPlrrqIMHLPjJSuDCrhoA3JseF0mHWC0eBo0THQG4v6GuTRZpM/tnzPKW7Ic4rS0FKJ5tb8KRVyCnk5j1WJaPr0Ua+0ItZmS09+HV8GdH8TfEVQ7AWtUu9sLVUYv+AM5FmbhtNYyyLtypBxpgRzAN2QycjBZxrPDAj7Y7OAEOSnAj4XyQjdgLpLc2H0wH5t7B38E0dXdCg9O6EbMBV4jcbT2UOA1cBNGiVAzHHg2wPfOBt5p36Q2YbuDb1Ko2xsDUJTv8U3RDfbw0txK2GxgqFDurCrM8366cVAMVlqkOgQIDV4HTStvvADzrjwKelAgDJHqgsLd1BHDbwGdgkMUOLwSujRB74i3g6lP2jUBuF7EUDhjYBesCaOgqD7C7gxh1zwDIA7LaiLUeUGbgWCjt4LcPHwOqE/z72A3AVuXPHQ9HDGzPB1eTnVkF5D4i/qJSgVWilAGrDSxTgHkmbfcNwMYwCSwFJil2MHhj7mDZDSwNERlaAJSMFWtjYYNygC/DTjFxZC6Q8+wKD5DZSfmlevgtyHY5DhVd72Jp9wtm1C20iVIujVmp65bMGNOvszk3x5wS8MSKD0tocj3AxX6iaRPNuS/8tM8N1E4OXL3d98CxCNE1F6W8J6x7+11YI9rGwZ74xWs/Scu+XAZA8UtOseKtkKjHj0Gq+HJ0ngonlYvxBbymxx0sVy8c/lHwBlgu+qoosuAyBSfCTtF3kcZQP+4D5xQ8Eoptevx94Ol+B75UcFgNDNXjzwJ2c9ub8JyC5VvYoccr4EWfDdkP5+0qHgmNfbU4AbY7TdDtIHhHi4olG447NDbkEFC4dvLTs76uBZJEh/t7YIsGuwioYYFosSwHPrAFf+9G4KNCzMjqK3osIWnAnvYWG50JvCf24cnb0j5NjDGRFktEFlCS4Gx+sLAc+NAmSioW5xaA4pQxHQ0ZPd5VCjS8rjIVm035G7PqijrMcgdKi7FEvnmN5k7PsEtLsZl99PuHb3i5XZSxLGC2evw/+hchTvJ/RuL+GwAAAABJRU5ErkJggg=="},
+      {"key": "longDescription", "value":  "Distributed, multitenant-capable full-text search engine."},
+      {"key": "providerDisplayName", "value":  "Ferran Rodenas"},
+      {"key": "documentationUrl", "value":  "https://github.com/pires/docker-elasticsearch-kubernetes/blob/master/README.md"},
+      {"key": "supportUrl", "value":  "https://github.com/pires/docker-elasticsearch-kubernetes"}
+    ],
+    "bindable": true,
+    "tags": [
+      "elasticsearch",
+      "search"
+    ],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated Elasticsearch 2.4.0 server. Resources used: 1 compute node, 2 GB RAM and 20 GB of exclusively allocated persistent storage.",
+	"cost": "free"
+      },
+      {
+        "name": "single-medium",
+        "description": "Create dedicated Elasticsearch 2.4.0 server. Resources used: 1 compute node, 12 GB RAM and 200 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

@@ -1,0 +1,62 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: docker-registry
+  namespace: kube-system
+  labels:
+    app: docker-registry
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: docker-registry
+    spec:
+      containers:
+      - name: docker-registry
+        image: localhost:5000/registry:2
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            memory: "{{ docker_registry_memory_limit }}"
+          requests:
+            memory: "{{ docker_registry_memory_limit }}"
+        ports:
+          - containerPort: 5000
+            protocol: TCP
+        volumeMounts:
+          - mountPath: /var/lib/registry/
+            name: registry-data-volume
+            readOnly: false
+          - name: docker-registry-config
+            mountPath: /etc/docker/registry/
+            readOnly: true
+          - name: docker-registry-cert-bundle
+            mountPath: /cert/ca.crt
+            subPath: ca
+            readOnly: true
+          - name: docker-registry-cert-bundle
+            mountPath: /cert/docker-registry.crt
+            subPath: crt
+            readOnly: true
+          - name: docker-registry-cert-bundle
+            mountPath: /cert/docker-registry.key
+            subPath: key
+            readOnly: true
+      volumes:
+      - name: docker-registry-cert-bundle
+        secret:
+          secretName: docker-registry-secret
+      - name: docker-registry-config
+        configMap:
+          name: docker-registry-config
+      - name: registry-data-volume
+        rbd:
+          monitors: {{ rbd_monitors }}
+          pool: rbd
+          image: docker-registry-store
+          user: admin
+          secretRef:
+            name: ceph-secret
+          fsType: ext4
+          readOnly: false

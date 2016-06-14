@@ -1,0 +1,9 @@
+#!/bin/bash -e
+
+NAME=/var/kerberos/dumps/slave_datatrans$(date +"%Y%m%d-%H%M%S")
+
+/sbin/kdb5_util dump $NAME
+
+{% for item in (groups['cdh-master'] | difference(groups['cdh-manager'])) %}
+/sbin/kprop -d -f $NAME -s /etc/hosts.keytab {{ item }}
+{% endfor %}

@@ -1,0 +1,128 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Deploy sentry service
+  cdh:
+    action: deploy_service
+    password: "{{ cdh_admin_password }}"
+    name: sentry
+
+- name: Set sentry server role properties
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: sentry
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'hdfs_service', value: 'HDFS' }
+    - { name: 'zookeeper_service', value: 'ZOOKEEPER' }
+    - { name: 'sentry_server_database_type', value: 'mysql' }
+    - { name: 'sentry_server_database_host', value: '{{ database.host }}' }
+    - { name: 'sentry_server_database_name', value: '{{ database.databases.sentry.name }}' }
+    - { name: 'sentry_server_database_port', value: '{{ database.port }}' }
+    - { name: 'sentry_server_database_user', value: '{{ database.databases.sentry.name }}' }
+    - { name: 'sentry_server_database_password', value: "{{ hostvars[groups['k8s-master'][0]].passwords.databases.sentry }}" }
+    - { name: 'sentry_server_config_safety_valve', value: '<property><name>sentry.hdfs.integration.path.prefixes</name><value>/user/hive/warehouse</value></property>' }
+
+- name: Set options for minimal deployment
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: sentry
+    role: "{{ item.role }}"
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { role: 'SENTRY_SERVER', name: 'sentry_server_java_heapsize', value: '268435456' }
+  when: deployment_type == 'minimal'
+
+- name: Deploy sentry
+  cdh:
+    action: deploy_base_roles
+    password: "{{ cdh_admin_password }}"
+    service: sentry
+    host: "{{ groups['cdh-manager'][0] }}"
+
+- name: Set hdfs service properties for sentry
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hdfs
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'hdfs_sentry_sync_enable', value: 'true' }
+    - { name: 'hdfs_sentry_sync_path_prefixes', value: '/user/hive/warehouse' }
+    
+- name: Set hive service properties for sentry
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hive
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'sentry_service', value: 'SENTRY' }
+    - { name: 'hive_service_config_safety_valve', value: '<property><name>sentry.hdfs.integration.path.prefixes</name><value>/user/hive/warehouse</value></property>' }
+    
+- name: Set hive hiveserver2 properties for sentry
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hive
+    role: HIVESERVER2
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'hiveserver2_enable_impersonation', value: 'false' }
+    
+- name: Set yarn nodemanager service properties for sentry
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: yarn
+    role: NODEMANAGER
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'container_executor_min_user_id', value: '0' }
+    
+- name: Set hue server role properties for sentry
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hue
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'sentry_service', value: 'SENTRY' }
+   
+- name: Start sentry service
+  cdh: 
+    action: service
+    password: "{{ cdh_admin_password }}"
+    service: sentry
+    state: started

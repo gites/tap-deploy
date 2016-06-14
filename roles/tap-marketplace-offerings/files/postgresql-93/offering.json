@@ -1,0 +1,355 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-small"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "10480",
+                  "volume_name": "postgresql-93-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": null,
+                "containers": [
+                  {
+                    "name": "postgresql-93",
+                    "image": "$repository_uri/tap-postgresql:9.3",
+                    "ports": [
+                      {
+                        "containerPort": 5432,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "POSTGRES_DATADIR",
+                        "value": "/var/lib/postgresql/data"
+                      },
+                      {
+                        "name": "POSTGRES_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-postgresql-93-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "POSTGRES_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-postgresql-93-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      { "name": "POSTGRES_DBNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-postgresql-93-credentials",
+                            "key": "dbname"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      },
+                      {
+                        "name": "POSTGRES_HOSTNAME",
+                        "value": "$short_instance_id"
+                      }
+                    ],
+                    "volumeMounts": [
+                      {
+                        "name": "postgresql-93-persistent-storage",
+                        "mountPath": "/var/lib/postgresql/"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "1Gi"
+                      },
+                      "limits": {
+                        "memory": "1Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        },
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            },
+            "annotations": {
+              "plan_names": "single-medium"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                },
+                "annotations":{
+                  "volume_read_only": "false",
+                  "volume_size_mb": "51200",
+                  "volume_name": "postgresql-93-persistent-storage"
+                }
+              },
+              "spec": {
+                "volumes": null,
+                "containers": [
+                  {
+                    "name": "postgresql-93",
+                    "image": "$repository_uri/tap-postgresql:9.3",
+                    "ports": [
+                      {
+                        "containerPort": 5432,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "POSTGRES_DATADIR",
+                        "value": "/var/lib/postgresql/data"
+                      },
+                      {
+                        "name": "POSTGRES_USERNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-postgresql-93-credentials",
+                            "key": "username"
+                          }
+                        }
+                      },
+                      {
+                        "name": "POSTGRES_PASSWORD",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-postgresql-93-credentials",
+                            "key": "password"
+                          }
+                        }
+                      },
+                      { "name": "POSTGRES_DBNAME",
+                        "valueFrom": {
+                          "secretKeyRef": {
+                            "Name": "$short_instance_id-postgresql-93-credentials",
+                            "key": "dbname"
+                          }
+                        }
+                      },
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      },
+                      {
+                        "name": "POSTGRES_HOSTNAME",
+                        "value": "$short_instance_id"
+                      }
+                    ],
+                    "volumeMounts": [
+                      {
+                        "name": "postgresql-93-persistent-storage",
+                        "mountPath": "/var/lib/postgresql/"
+                      }
+                    ],
+                    "resources": {
+                      "requests": {
+                        "memory": "4Gi"
+                      },
+                      "limits": {
+                        "memory": "4Gi"
+                      }
+                    },
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "protocol": "TCP",
+                "port": 5432
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": [
+        {
+          "kind": "Secret",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$short_instance_id-postgresql-93-credentials",
+            "creationTimestamp": null,
+            "labels": {
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "instance_id": "$instance_id"
+            }
+          },
+          "data": {
+            "username": "$base64-$random1",
+            "password": "$base64-$random2",
+            "dbname": "$base64-$random3"
+          }
+        }
+      ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "postgresql-93",
+    "description": "Relational database management system.",
+    "bindable": true,
+    "metadata":[
+      {"key":"displayName","value": "PostgreSQL 9.3"},
+      {"key":"imageUrl","value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACu1BMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RmW6UOAAAA6HRSTlMAAAECAwQFBgcICQoLDA0ODxAREhMUFRcYGRobHB0eHyAhIiMlJicoKSorLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZISUpLTE1OT1BRU1RVV1hZWltcXV5fYGJjZWZnaGlqa2xtb3BxcnN0dnd4eXt8fX5/gIGCg4aHiIqLjI2Oj5CRkpOUlZeYmZudnqChoqOkpqeoqaqrrK2ur7CxsrO0tba3ubq7vL2+v8DBwsPExcbHyMnKzM3P0NHS09TW2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+vaUpXAAABORJREFUeF7F1/F3zWUAx/FPdxuMQbMFzDTSql0gSFZUVLMREgkhpSgRRSHCsNJQQgkBImjEMgiWNrTFprA1Y7v3/Wd0znPv9/uccXHu8UPvn77nnvO69z7Pc5/nOVf33UP3iGWLTmyXUE8ha/vxoTIo2thTNlkclfFNOUBB9nMemTwte/RLT0v1NvXELfcT7KfHbsVRYwtxy/VKsWO3/OOA8jIAyqoAqmdH3YRT8gA4vGt3vg+oeOmzcmp2Y0OylLjoGrAnvgYeWgkUv5cgSbFjzoMP4MKmBdMnTp2V9cMZv+Gz60httgD5TS3WK0DFpGgFu78AuJbVxSOn2IxV14BfH5A0sQpy67i4xw040lZuw4HtbVSzZov9cKqJpLQqmO/g6NOQ28ha73VYEKFb6n0JdngkjQd/chBPgtIW1kYegS8VqpSrMFySNsG6AI48D2NkGwkn6ipkr8FJSUr2UxVrcB84W1u2E/C8QhdxEjpJ0g4YZfCn8Ilsj8Nh3a6Z8KYkjYMsg3dCL9kWwqTb4kGwWJI6wgGDC6CRbMchQVKrF2NC4HTIlqRE2G2wjxLZGkO+pPng/3mQx7J+eWX7u+rZIPbCZoOhQLbusEpKxrTe2Z+1VwNcqJUaxE/DyhB4GMyUumFibRDPx9TawWNhRhBflu0tGC1FHYSiTOApY+tXAnA6wsGZMMTgcq7INjXwcr2Rr8drHnxhcE/YP2LHVw8qFVZIUh4kGlwMdSyeCEMV7GE4aPAz8LV5SIX1kuL8nJfBhyHR4skw0M48eca0Mw8Wj4NlAbwZulv8IaQ7OMn5ZE8JJElStwDOgb4BvBBetfh9GObgDOfbainMMetrcCcojgzgcbDE4vEw2cGZMEGmFCiPc/EamKYA7ga/WPwCZDl7qAjaK9BWWOLgjn7KmwRx3Uoqo+3hbt8qDY4pmNdHdUoAe/bBXAWxdkN/F3su4YuVaQe8LacsyI00eCRcbOTiybBcbt8589cNyu12a1xEYRulwrarMEYuToKyhi4eAocMWA0LZBuwKMascyn86LFY++AdF9e/BIMlKWbKn81UI4PhSoIs1stQbKfsAyhpbUCUQuKBsliKOgPTXBxXCvlJClka+GY50l43Fc6KdjkDcGVCnRA28QT45jSviT0H4HA9YzMqAR9wIWuIt0XjBi70fr90pw8AX87c0el9Unt5UwxW+0pYEykp7QaUDO71F8Hyag4X/ynczvYx2NwFrIhUhwo41kpacyvuBLCrs55YeRXTisYKYs0DtjxUCMfipUf98O6yo+Vgf/VeAN/RrdtP+AEK0yUXe5YC1VDcUorIgY3u6WyxrXRGtBxs9EcAvt6SpsD19pJGwXHZM4nf91UAXPx2eF3JYtOAksByP1kN0yX1KYOTdpkgT5GtUtrHyWax4rNzIqTkv2FvpBrO8wF7amI3i221pKSzcK55/LRSAOyYW98VS8nngewtVYB/NWy3e/LuuGsJTnu7mEPHYvLvjDMqMHF5RVfpZlxwR5y08dC5y3/kbpjat5Z0E64dGt+2DrBWbmFicye6QXE4uG8NXM3lcHB/2ObaqH/DwzEV2DvwDTgaDlYmFLQMDqECBoWFY4uhaHi0lPhpNaxTWFidrwLXCy8A5DQIE+uR3wi2vJ7CxYoasfUK/lOfd1aI/r9/dP8BGtRqou0DpNkAAAAASUVORK5CYII="},
+      {"key":"longDescription","value": "Relational database management system."},
+      {"key":"providerDisplayName","value": "Ferran Rodenas"},
+      {"key":"documentationUrl","value": "https://github.com/frodenas/docker-postgresql/blob/master/README.md"},
+      {"key":"supportUrl","value": "https://github.com/frodenas/docker-postgresql"}
+    ],
+    "tags": [
+      "postgresql",
+      "sql",
+      "database"
+    ],
+    "plans": [
+      {
+        "name": "single-small",
+        "description": "Create dedicated PostgreSQL 9.3 database server. Resources used: 1 compute node, 1 GB RAM and 10 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      },
+      {
+        "name": "single-medium",
+        "description": "Create dedicated PostgreSQL 9.3 database server. Resources used: 1 compute node, 4 GB RAM and 50 GB of exclusively allocated persistent storage.",
+        "cost": "free"
+      }
+    ]
+  }]
+}

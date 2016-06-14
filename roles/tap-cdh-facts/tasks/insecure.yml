@@ -1,0 +1,92 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: get CDH configurations
+  cdh_conf:
+    host: 'localhost'
+    user: 'admin'
+    pass: "{{ cdh_admin_password }}"
+  register: config_map
+  delegate_to: '{{ groups["cdh-manager"][0] }}'
+
+- name: set Krb cacert
+  set_fact:
+    krbcacert: ''
+
+- name: set User related facts
+  set_fact:
+    hgm_principal: 'hgm'
+    hadoop_warehouse_principal: 'hive'
+    sentry_principal: 'sentry'
+    hive_principal: 'hive'
+    hdfs_superuser: 'hdfs'
+    hdfs_principal: 'authgateway'
+    hdfs_hiveuser: 'hive'
+    broker_principal: 'broker'
+    tap_principal: 'tap'
+
+- name: set Empty Kerberos templates
+  set_fact:
+    krb_kdc: ''
+    krb_realm: ''
+    krb_enabled: 'false'
+    
+- name: set Cloudera Manager facts
+  set_fact:
+    cloudera_manager_host: '{{ groups["cdh-manager"][0] }}'
+    cloudera_user: 'admin'
+    cloudera_password: '{{ cdh_admin_password }}'
+    cloudera_port: '7183'
+
+- name: set Host related facts
+  set_fact:
+    oozie_server: '{{ config_map | role_host("OOZIE", "OOZIE-OOZIE_SERVER") }}'
+    sqoop_metastore: '{{ config_map | role_ip("SQOOP_METASTORE", "SQOOP-SQOOP_METASTORE") }}'
+    hgm_hostname: '{{ config_map | role_host("HADOOPGROUPSMAPPING", "HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER") }}'
+    hgm_port: '{{ config_map | role_prop("HADOOPGROUPSMAPPING", "HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER", "rest_port") }}'
+    hgm_password: '{{ config_map | role_prop("HADOOPGROUPSMAPPING", "HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER", "basic_auth_pass") }}'
+    hgm_user: '{{ config_map | role_prop("HADOOPGROUPSMAPPING", "HADOOPGROUPSMAPPING-HADOOPGROUPSMAPPING_RESTSERVER", "basic_auth_user") }}'
+    hive_host: '{{ config_map | role_host("HIVE", "HIVE-HIVESERVER2") }}'
+    hive_port: '{{ config_map | role_prop("HIVE", "HIVE-HIVESERVER2", "hs2_thrift_address_port") }}'
+    hive_server_thrift_host: '{{ config_map | role_host("HIVE", "HIVE-HIVESERVER2") }}'
+    hive_server_thrift_port: '{{ config_map | role_prop("HIVE", "HIVE-HIVESERVER2", "hs2_thrift_address_port") }}'
+    sentry_host: ''
+    sentry_port: ''
+    auth_gateway_sys_user: 'broker'
+    auth_gateway_zk_user: 'authgateway'
+    auth_gateway_profiles: 'cloud,hgm-auth-gateway,zookeeper-auth-gateway,warehouse-auth-gateway,hdfs-auth-gateway,hbase-auth-gateway,yarn-auth-gateway'
+    broker_profiles: 'simple'
+    impala_availability: 'false'
+    kafka_host: '{{ config_map | role_ip("KAFKA", "KAFKA_BROKER-1") }}'
+    kafka_port: '{{ config_map | role_prop("KAFKA", "KAFKA_BROKER-1", "port" ) }}'
+
+- name: set Host complex facts
+  set_fact:
+    zookeeper_cluster_host: '{{ config_map | zookeeper_cluster("ZOOKEEPER", "2181") }}'
+    impala_jdbc: 'jdbc:hive2://{{ hive_host }}:{{ hive_port }}/;ssl=true;sslTrustStore={{ trusted_store_path }}{{ trusted_store_file }};trustStorePassword={{ store_pass }};'
+    hive_jdbc: 'jdbc:hive2://{{ hive_host }}:{{ hive_port }}/;ssl=true;sslTrustStore={{ trusted_store_path }}{{ trusted_store_file }};trustStorePassword={{ store_pass }};'
+    hgm_host: 'https://{{ hgm_hostname }}:{{ hgm_port }}'
+    kafka_uri: '{{ kafka_host }}:{{ kafka_port }}'
+
+- name: set empty keytab values
+  set_fact:
+    hdfs_keytab_value: ''
+    hive_keytab_value: ''
+    authgateway_keytab_value: ''
+    hgm_keytab_value: ''
+    broker_keytab_value: ''

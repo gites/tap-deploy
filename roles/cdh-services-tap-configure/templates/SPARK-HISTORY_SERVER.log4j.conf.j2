@@ -1,0 +1,6 @@
+main.logger=RFA,SA
+log4j.appender.SA=org.apache.log4j.net.SocketAppender
+log4j.appender.SA.Port=24555
+log4j.appender.SA.RemoteHost={{ logstash_clusterip }}
+log4j.appender.SA.ReconnectionDelay=10000
+log4j.appender.SA.Application=CDH.SPARK-HISTORY_SERVER-${user.dir}

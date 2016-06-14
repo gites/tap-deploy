@@ -1,0 +1,63 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+- name: PLATFORM-TESTS Create a service
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Service"
+      apiVersion: "v1"
+      metadata:
+        name: "platform-tests"
+        labels:
+          id: "platform-tests"
+      spec:
+        type: "ClusterIP"
+        selector:
+          id: "platform-tests"
+        ports:
+          - port: 80
+            protocol: "TCP"
+            name: "rest"
+    state: present
+
+- name: PLATFORM-TESTS Create a ConfigMap instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "ConfigMap"
+      apiVersion: "v1"
+      metadata:
+        name: "platform-tests"
+        labels:
+          id: "platform-tests"
+      data:
+        host: platform-tests
+        port: "80"
+        protocol: "{{ external_protocol }}"
+        mongodb-username: ptuser
+        mongodb-password: "{{ hostvars[groups['k8s-master'][0]].passwords.platform_tests.mongodb_pass }}"
+        mongodb-dbname: test_results
+
+- name: PLATFORM-TESTS Create a deployment instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data: "{{ lookup('template', 'apps/platform-tests.deployment.j2') }}"

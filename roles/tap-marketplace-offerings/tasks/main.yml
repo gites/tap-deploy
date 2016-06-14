@@ -1,0 +1,68 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Configure TAP platform marketplace offerings on Kubernets.
+#
+###
+---
+- name: wait for api
+  action: uri url="{{ external_protocol }}://api.{{ tap_domain_name }}/healthz"
+  register: result
+  until: result.status == 200
+  retries: 45
+  delay: 15
+
+- name: wait for uaa
+  action: uri url="{{ external_protocol }}://uaa.{{ tap_domain_name }}/login" return_content=yes
+  register: result
+  until: result.content.find("<title>Trusted Analytics Platform</title>") != -1
+  retries: 45
+  delay: 15
+
+- name: login to api
+  uri:
+    url: "{{ external_protocol }}://api.{{ tap_domain_name }}/api/v3/login"
+    method: GET
+    user: admin
+    password: "{{ platform_admin_password }}"
+    force_basic_auth: yes
+    status_code: 200
+    body_format: json
+  register: api_login
+
+- name: get catalog elements
+  uri:
+    url: "{{ external_protocol }}://api.{{ tap_domain_name }}/api/v3/offerings"
+    method: GET
+    HEADER_Authorization: "Bearer {{api_login.json['access_token']}}"
+    status_code: 200
+  register: get_catalog_response
+
+- set_fact: catalog_items="{{ get_catalog_response.json | map(attribute='name') | list }}"
+
+#add only new elements
+- name: add to catalog
+  uri:
+    url: "{{ external_protocol }}://api.{{ tap_domain_name }}/api/v3/offerings"
+    method: POST
+    HEADER_Authorization: "Bearer {{api_login.json['access_token']}}"
+    status_code: 202
+    body_format: json
+    body: "{{ lookup('file','{{ item }}/offering.json') }}"
+  with_items: "{{ all_platform_offerings  | difference(catalog_items) }}"
+

@@ -1,0 +1,109 @@
+{
+  "template": {
+    "body": [
+      {
+        "componentType": "instance",
+        "persistentVolumeClaims": null,
+        "deployments": [
+          {
+            "kind": "Deployment",
+            "apiVersion": "extensions/v1beta1",
+            "metadata": {
+              "name": "$idx_and_short_instance_id",
+              "creationTimestamp": null,
+              "labels": {
+                "plan_id": "$plan_id",
+                "offering_id": "$offering_id",
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "managed_by": "TAP",
+                "org": "$org",
+                "instance_id": "$instance_id",
+                "space": "$space"
+              }
+            },
+            "spec": {
+              "replicas": 0,
+              "selector": {
+                "matchLabels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "template": {
+                "metadata": {
+                  "creationTimestamp": null,
+                  "labels": {
+                    "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                    "managed_by": "TAP",
+                    "instance_id": "$instance_id"
+                  }
+                },
+                "spec": {
+                  "volumes": [],
+                  "containers": [
+                    {
+                      "name": "hadoop-configmap",
+                      "image": "$repository_uri/kubernetes/pause",
+                      "env": [
+                        {
+                          "name": "MANAGED_BY",
+                          "value": "TAP"
+                        },
+                        {
+                          "name": "EXP_MOUNT_CONFIG_MAP_NAME_HADOOP",
+                          "value": "hadoop-conf"
+                        },
+                        {
+                          "name": "EXP_MOUNT_PATH_HADOOP",
+                          "value": "/etc/hadoop-conf"
+                        },
+                        {
+                          "name": "EXP_MOUNT_READ_ONLY_HADOOP",
+                          "value": "true"
+                        }
+                      ],
+                      "resources": {
+                        "requests": {
+                          "memory": "16Mi"
+                        },
+                        "limits": {
+                          "memory": "16Mi"
+                        }
+                      },
+                      "imagePullPolicy": "IfNotPresent"
+                    }
+                  ],
+                  "restartPolicy": "Always",
+                  "dnsPolicy": "ClusterFirst",
+                  "serviceAccountName": ""
+                }
+              },
+              "strategy": {}
+            },
+            "status": {}
+          }
+        ]
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "hadoop-configmap",
+    "description": "Bound instance of this offering to some target - it will get volume mounted on /etc/hadoop-conf",
+    "metadata":[
+      {"key":"displayName","value": "Hadoop configMap"}
+    ],
+    "bindable": true,
+    "tags": [
+      "hadoop",
+      "configmap"
+    ],
+    "plans": [
+      {
+        "name": "free",
+        "description": "free",
+        "cost": "free"
+      }
+    ]
+  }]
+}

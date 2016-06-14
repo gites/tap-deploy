@@ -1,0 +1,26 @@
+---
+kind : ConfigMap
+apiVersion : v1
+metadata :
+  name : h2o-broker
+  labels:
+    id: h2o-broker
+    managed_by: "TAP"
+data :
+  host : "h2o-broker"
+  port : "8080"
+  user-password : "{{ '' | rand_password() }}"
+
+---
+kind : ConfigMap
+apiVersion : v1
+metadata :
+  name : h2o-provisioner
+  labels:
+    id: h2o-provisioner
+    managed_by: "TAP"
+data :
+  host : "h2o-broker"
+  port : "9090"
+  driver-ip : "{{ hostvars[groups['k8s-master'][0]].ansible_host }}"
+  subnet: "{{ hostvars[groups['cdh-worker'][0]].ansible_host | ipsubnet(24) }}"

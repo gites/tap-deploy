@@ -1,0 +1,94 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Configure and start SkyDNS.
+#
+# Run SkyDNS and register all platform hosts inside.
+#
+###
+---
+
+- name: Set facts for SkyDNS deployment
+  set_fact:
+    etcd_skydns_machines: "{% for node in groups['k8s-etcd'] %}http{% if etcd.skydns.enable_ssl %}s{% endif %}://{{ hostvars[node].ansible_host }}:{{ etcd.skydns.client_port }}{% if not loop.last %},{% endif %}{% endfor %}"
+    recursive_dns: "{% for ns in dns|default([]) %}{{ ns }}:53{% if not loop.last %},{% endif %}{% endfor %}"
+    etcdctl_cmd: >-
+      etcdctl
+      --ca-file={{ etcd.skydns.ca_file }}
+      --cert-file={{ etcd.skydns.cert_file }}
+      --key-file={{ etcd.skydns.key_file }}
+      --endpoints=https://{{ hostvars[groups['k8s-etcd'][0]].ansible_host }}:{{ etcd.skydns.client_port }}
+
+- name: Slurp SSL certs
+  slurp:
+    src: "{{ item }}"
+  with_items:
+    - "{{ etcd.skydns.cert_file }}"
+    - "{{ etcd.skydns.key_file }}"
+    - "{{ etcd.skydns.ca_file }}"
+  register: skydns_keys_base64
+  become: True
+
+- name: SkyDNS k8s deployment
+  tapkube:
+    api_endpoint: '127.0.0.1:{{ k8s_api_insecure_port }}'
+    insecure: yes
+    inline_data: "{{ lookup('template', 'apps/skydns.' + item + '.j2') }}"
+  with_items:
+    - secret
+    - daemonset
+    - service
+    - nodeport
+  register: skydns_deployment
+
+- name: Kube2Sky deployment
+  tapkube:
+    api_endpoint: '127.0.0.1:{{ k8s_api_insecure_port }}'
+    insecure: yes
+    inline_data: "{{ lookup('template', 'apps/kube2sky.' + item + '.j2') }}"
+  with_items:
+    - deployment
+
+- name: Wait for SkyDNS etcd
+  shell: >-
+    {{ etcdctl_cmd }}
+    cluster-health
+  register: result
+  until: result.rc == 0
+  retries: 15
+  delay: 15
+  become: True
+
+- name: Register hosts in SkyDNS
+  shell: >-
+    {{ etcdctl_cmd }}
+    set /skydns/{{ ('host.' + item) | split('.') | reverse | list | join('/') }}
+    '{"host":"{{ hostvars[item].ansible_host }}"}'
+  with_items: "{{ groups['cdh-all'] + groups['k8s-all'] }}"
+  when: skydns_deployment.changed
+  become: True
+
+- name: Also register reverse dns
+  shell: >-
+    {{ etcdctl_cmd }}
+    set /skydns/arpa/in-addr/{{ hostvars[item].ansible_host | split('.') | list | join('/') }}
+    '{"host":"{{ item }}"}'
+  with_items: "{{ groups['cdh-all'] + groups['k8s-all'] }}"
+  when: skydns_deployment.changed
+  become: True
+

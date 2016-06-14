@@ -1,0 +1,39 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Create dummy CentOS extras repo for Ceph
+  ini_file:
+    dest: /etc/yum.repos.d/CentOS-Base.repo
+    section: extras
+    option: mirrorlist
+    state: absent
+
+- name: Target dummy CentOS extras to offline-deployment repo
+  ini_file:
+    dest: /etc/yum.repos.d/CentOS-Base.repo
+    section: extras
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+  with_items:
+     - { key: "baseurl", value: "{{ repo_host }}/yum" }
+     - { key: "gpgcheck", value: "0" }
+     - { key: "name", value: "Dummy CentOS extras repo" }
+     - { key: "proxy", value: "_none_" }
+
+- name: Clean cache after updating yum files
+  shell: yum clean all

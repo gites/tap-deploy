@@ -1,0 +1,56 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Deploy TAP platform core apps on Kubernetes.
+#
+###
+---
+  - include: base.yml
+  - include: mrp-kibana.yml
+  - include: sso-config.yml
+#- include: nginx.yml
+  - include: addons.yml
+  - include: ingress.yml
+  - include: queue.yml
+  - include: ceph-broker.yml
+  - include: etcd-catalog.yml
+  - include: catalog.yml
+  - include: template-repository.yml
+  - include: container-broker.yml
+  - include: uaa.yml
+  - include: auth-gateway.yml
+  - include: user-management.yml
+  - include: console.yml
+  - include: blob-store.yml
+  - include: image-factory.yml
+  - include: api-service.yml
+  - include: metrics.yml
+  - include: monitor.yml
+  - include: ceph-monitor.yml
+  - include: workflow-scheduler.yml
+  - include: data-catalog.yml
+  - include: hadoop-configuration.yml
+  - include: h2o-scoring-engine-publisher.yml
+  - include: h2o-model-provider.yml
+  - include: model-catalog.yml
+  - include: h2o-configuration.yml
+  - include: platform-snapshot.yml
+  - include: key-counter.yml
+  - include: mrp-jupyter.yml
+  - include: platform-tests.yml
+  - include: se-mc-integrater.yml

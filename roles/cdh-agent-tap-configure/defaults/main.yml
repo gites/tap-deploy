@@ -1,0 +1,40 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+pip_dependencies:
+  - coverage-4.2.tar.gz
+  - decorator-4.0.10-py2.py3-none-any.whl
+  - glob2-0.5-py2.py3-none-any.whl
+  - importlib-1.0.4.zip
+  - lxml-3.6.4-cp27-cp27mu-manylinux1_x86_64.whl
+  - nose-1.3.7-py2-none-any.whl
+  - numpy-1.11.2-cp27-cp27mu-manylinux1_x86_64.whl
+  - six-1.10.0-py2.py3-none-any.whl
+  - python_dateutil-2.6.0-py2.py3-none-any.whl
+  - pytz-2016.10-py2.py3-none-any.whl
+  - pandas-0.19.1-cp27-cp27mu-manylinux1_x86_64.whl
+  - Markdown-2.4.1.tar.gz
+  - MarkupSafe-0.23.tar.gz
+  - Mako-1.0.6.tar.gz
+  - pdoc-0.3.2.tar.gz
+  - py4j-0.9-py2.py3-none-any.whl
+  - pydicom-0.9.9.tar.gz
+  - py-1.4.31-py2.py3-none-any.whl
+  - pytest-3.0.5-py2.py3-none-any.whl
+  - pytest_cov-2.4.0-py2.py3-none-any.whl
+  - teamcity-messages-1.20.tar.gz

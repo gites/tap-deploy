@@ -1,0 +1,15 @@
+# tap-ceph-broker configuration options
+
+CEPH_BROKER_USER="{{ ceph_broker_user }}"
+
+CEPH_BROKER_PASS="{{ hostvars[groups['k8s-master'][0]].passwords.k8s.ceph_broker_pass }}"
+
+BIND_ADDRESS="0.0.0.0"
+
+PORT="{{ ceph_broker_port }}"
+
+CEPH_BROKER_SSL_CERT_LOCATION="{{ ceph_broker_cert_path }}"
+
+CEPH_BROKER_SSL_KEY_LOCATION="{{ ceph_broker_key_path }}"
+
+BROKER_LOG_LEVEL="INFO"

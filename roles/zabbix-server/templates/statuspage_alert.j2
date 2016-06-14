@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#Log file - {{ zabbix_server.server_conf.AlertScriptsPath }}/statuspage/statuspage.log
+#env_id maps host macro on zabbix configuration with component id on statuspage
+
+env_id=$2
+status=$3
+
+case $3 in
+  OK)
+    operation="operational"
+    ;;
+  PROBLEM)
+    operation="major_outage"
+    ;;
+esac
+
+touch {{ zabbix_server.server_conf.AlertScriptsPath }}/statuspage/statuspage.log
+
+response=$(curl https://api.statuspage.io/v1/pages/7y611nxw7tnd/components/${env_id}.json \
+-H "Authorization: OAuth {{ zabbix_server.statuspage_token }}" \
+-X PATCH \
+-d  "component[status]=${operation}")
+
+echo $response >> {{ zabbix_server.server_conf.AlertScriptsPath }}/statuspage/statuspage.log

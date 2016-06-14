@@ -1,0 +1,96 @@
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: data-acquisition
+  labels:
+    tap_app_type: CORE
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: data-acquisition
+    spec:
+      containers:
+      - name: data-acquisition
+        image: '{{ repository_uri }}/data-acquisition:{{ tap_version }}'
+        resources:
+          limits:
+            memory: "{{ data_acquisition_memory_limit }}"
+          requests:
+            memory: "{{ data_acquisition_memory_limit }}"
+        env:
+        - name: JAVA_OPTS
+          value: '-Xss228k -Xms512m -Xmx512m -XX:MetaspaceSize=128m'
+        - name: SERVER_PORT
+          value: '80'
+        - name: SPRING_PROFILES_ACTIVE
+          value: 'kube,default'
+        - name: SSO_TOKENKEY
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: token-key
+        - name: SSO_APIENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: api-endpoint
+        - name: SSO_UAAURI
+          valueFrom:
+            configMapKeyRef:
+              name: sso
+              key: uaa-uri
+        - name: USER_MANAGEMENT_URI
+          valueFrom:
+            configMapKeyRef:
+              name: user-management
+              key: host
+        - name: METADATA_PARSER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: metadata-parser
+              key: uri
+        - name: DOWNLOADER_URI
+          valueFrom:
+            configMapKeyRef:
+              name: downloader
+              key: uri
+        - name: DATA_ACQUISITION_URI
+          valueFrom:
+            configMapKeyRef:
+              name: das
+              key: host
+        - name: ZOOKEEPER_URI 
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config 
+              key: kafka.zookeeper.cluster.host
+        - name: KAFKA_URI 
+          valueFrom:
+            configMapKeyRef:
+              name: cloudera-config
+              key: kafka.uri
+        - name: REDIS_HOST
+          value: request-store
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REQUEST_STORE_DB_CIPHER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: "request-store"
+              key: "cipher-key"
+  
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: data-acquisition
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+  selector:
+    app: data-acquisition
+

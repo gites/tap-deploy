@@ -1,0 +1,118 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+- name: Create h2o-model-provider deployment
+  register: h2o_model_provider_details
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Deployment"
+      apiVersion: "extensions/v1beta1"
+      metadata:
+        name: "h2o-model-provider"
+        labels:
+          tap_app_type: CORE
+      spec:
+        replicas: 1
+        template:
+          metadata:
+            labels:
+              app: h2o-model-provider
+          spec:
+            containers:
+              - name: "h2o-model-provider"
+                image: "{{ repository_uri }}/h2o-model-provider:{{ tap_version }}"
+                env:
+                  - name: CATALOG_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "host"
+                  - name: CATALOG_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "port"
+                  - name: CATALOG_USER
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "user"
+                  - name: CATALOG_PASS
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "catalog"
+                        key: "pass"
+                  - name: MODEL_CATALOG_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "model-catalog"
+                        key: "host"
+                  - name: MODEL_CATALOG_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "model-catalog"
+                        key: "port"
+                  - name: CLIENT_ID
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "sso"
+                        key: "client-id"
+                  - name: SE_PUBLISHER_HOST
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "h2o-scoring-engine-publisher"
+                        key: "hostname"
+                  - name: SE_PUBLISHER_PORT
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "h2o-scoring-engine-publisher"
+                        key: "port"
+                  - name: SE_PUBLISHER_USER
+                    valueFrom:
+                      configMapKeyRef:
+                        key: h2o-se-publisher-user
+                        name: h2o-scoring-engine-publisher
+                  - name: SE_PUBLISHER_PASS
+                    valueFrom:
+                      configMapKeyRef:
+                        key: h2o-se-publisher-pass
+                        name: h2o-scoring-engine-publisher
+                  - name: CLIENT_SECRET
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "sso"
+                        key: "client-secret"
+                  - name: TOKEN_URI
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "sso"
+                        key: "token-uri"
+                  - name: CORE_ORGANIZATION_UUID
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "platform"
+                        key: "core-org-uuid"
+                  - name: REDIS_HOST
+                    value: "localhost"
+                  - name: REDIS_PORT
+                    value: "6379"
+                imagePullPolicy: "IfNotPresent"
+              - name: "redis"
+                image: "{{ repository_uri }}/redis:3.0"
+          restartPolicy: "Always"
+          dnsPolicy: "ClusterFirst"

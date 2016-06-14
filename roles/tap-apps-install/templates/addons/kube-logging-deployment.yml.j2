@@ -1,0 +1,327 @@
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: elastic-kibana
+  namespace: kube-system
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    id: "elastic-kibana"
+  name: "elastic-kibana"
+  namespace: "kube-system"
+spec:
+  selector:
+    id: "elastic-kibana"
+  type: "NodePort"
+  ports:
+  - port: 9200
+    protocol: "TCP"
+    nodePort: 30200
+    name: "http"
+  - port: 5601
+    protocol: "TCP"
+    name: "kibana"
+    nodePort: 30601
+  - port: 8080
+    protocol: "TCP"
+    name: "micro-reverse-proxy"
+    targetPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    id: "elastic-cluster"
+  name: "elastic-cluster"
+  namespace: "kube-system"
+spec:
+  selector:
+    id: "elastic-kibana"
+  type: "NodePort"
+  ports:
+  - port: 9300
+    protocol: "TCP"
+    name: "transport"
+
+{% for n in range(1,elastic_nodes+1,1) %}
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    replica: "elastic-kibana{{ n }}"
+    id: "elastic-kibana"
+    kubernetes.io/cluster-service: "true"
+  name: "elastic-kibana{{ n }}"
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      replica: "elastic-kibana{{ n }}"
+  template:
+    metadata:
+      labels:
+        replica: "elastic-kibana{{ n }}"
+        id: "elastic-kibana"
+        kubernetes.io/cluster-service: "true"
+    spec:
+      serviceAccount: "elastic-kibana"
+      containers:
+      - name: "elastic"
+        imagePullPolicy: "Always"
+        image: "{{ repository_uri }}/docker-elasticsearch-kubernetes:2.4.0"
+        env:
+        - name: "KUBERNETES_CA_CERTIFICATE_FILE"
+          value: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        - name: "NODE_MASTER"
+          value: "true"
+        - name: "NODE_DATA"
+          value: "true"
+        - name: "CLUSTER_NAME"
+          value: "myesdb"
+        - name: "NAMESPACE"
+          valueFrom:
+            fieldRef:
+              fieldPath: "metadata.namespace"
+        - name: "HTTP_ENABLE"
+          value: "true"
+        - name: "DISCOVERY_SERVICE"
+          value: "elastic-cluster"
+        - name: "DBNAME"
+          value: "myesdb"
+        - name: "NUMBER_OF_SHARDS"
+          value: "3"
+        - name: "NUMBER_OF_REPLICAS"
+          value: "{% if elastic_nodes == 1 %}0{% elif elastic_nodes == 2 %}1{% else %}2{% endif %}"
+        ports:
+        - containerPort: 9200
+          protocol: "TCP"
+        - containerPort: 9300
+          protocol: "TCP"
+        volumeMounts:
+        - name: "elastic-persistent-storage-{{ n }}"
+          mountPath: "/data"
+      - name: "kibana"
+        imagePullPolicy: "Always"
+        image: "{{ repository_uri }}/kibana:4.6.1"
+        ports:
+          - containerPort: 5601
+            protocol: "TCP"
+        env:
+        - name: "ELASTICSEARCH_URL"
+          value: "http://elastic-kibana:9200"
+        - name: "DBNAME"
+          value: "myesdb"
+      - name: "curator"
+        imagePullPolicy: "Always"
+        image: "{{ repository_uri }}/elasticsearch-curator:4.1.0"
+        command: ["/bin/bash"]
+        args: ["/loop.sh"]
+        env:
+        - name: "ELASTIC_SERVICE"
+          value: "elastic-kibana"
+      - name: "micro-reverse-proxy"
+        image: "{{ repository_uri }}/micro-reverse-proxy:{{ tap_version }}"
+        imagePullPolicy: "IfNotPresent"
+        ports:
+          - containerPort: 8080
+            protocol: "TCP"
+        resources:
+          limits:
+            memory: 500M
+          requests:
+            memory: 100M
+        volumeMounts:
+        - name: "mrp-volume"
+          mountPath: "/root/conf"
+        env:
+        - name: MANAGED_BY
+          value: TAP
+        - name: OAUTH_CLIENT_ID
+          value: kibana
+        - name: OAUTH_CLIENT_SECRET
+          value: "{{ hostvars[groups['k8s-master'][0]].passwords.uaa.kibana_secret }}" 
+        - name: SESSION_ID_SEED
+          value: secret_phrase
+        - name: UAA_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: uaa-uri-mrp-fqdn
+              name: sso
+        - name: UAA_AUTHORIZATION_URI
+          valueFrom:
+            configMapKeyRef:
+              key: authorization-uri
+              name: sso
+        - name: USER_ID
+          value: admin
+        - name: TAP_K8S
+          value: "true"
+      imagePullSecrets:
+      - name: "repo-secret"
+      restartPolicy: Always
+      volumes:
+      - name: elastic-persistent-storage-{{ n }}
+        rbd:
+          monitors: [{% for item in groups["mons"]%}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]
+          pool: rbd
+          image: logging{{ n }}
+          user: admin
+          secretRef:
+            name: ceph-secret
+          fsType: ext4
+          readOnly: false
+      - configMap:
+          name: mrp-kibana-conf
+        name: mrp-volume
+{% endfor %}
+
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    app: fluentd-logging
+  name: fluentd-logging
+  namespace: kube-system
+spec:
+  template:
+    metadata:
+      labels:
+        app: fluentd-logging
+    spec:
+      containers:
+      - name: fluentd-logging
+        image: "{{ repository_uri }}/fluentd-elasticsearch:1.5.0"
+        resources:
+          limits:
+            cpu: 200m
+            memory: "{{ kube_logging_memory_limit }}"
+          requests:
+            cpu: 200m
+            memory: "{{ kube_logging_memory_limit }}"
+        volumeMounts:
+          - name: var-lib-docker-containers
+            mountPath: /var/lib/docker/containers
+            readOnly: true
+          - name: var-log-containers
+            mountPath: /var/log/containers
+          - name: kubelogging-config
+            mountPath: /etc/td-agent/
+      volumes:
+        - name: var-lib-docker-containers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: var-log-containers
+          hostPath:
+            path: /var/log/containers
+        - name: kubelogging-config
+          configMap:
+            name: kubelogging-td-agent-config
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: kibana
+  namespace: kube-system
+  annotations:
+    useExternalSsl: "{{ enable_external_ssl }}"
+spec:
+  rules:
+  - host: kibana.{{ tap_domain_name }}
+    http:
+      paths:
+      - backend:
+          serviceName: elastic-kibana
+          servicePort: 8080
+        path: /
+status:
+  loadBalancer: {}
+
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: "logstash-config"
+  labels:
+    id: "logstash-config"
+  namespace: "kube-system"
+data:
+  logstash.conf: |
+    input {
+      log4j { mode => "server" host => "0.0.0.0" port => 24555 type => "log4j" }
+    }
+    output {
+      elasticsearch { hosts => ["elastic-kibana:9200"]}
+    }
+
+---
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  labels:
+    app: "logstash"
+  name: "logstash"
+  namespace: kube-system
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: "logstash"
+    spec:
+      containers:
+        - name: "logstash"
+          image: "{{ repository_uri }}/logstash:2.4"
+          ports:
+          - name: logstash-tcp
+            containerPort: 24555
+            protocol: TCP
+          - name: logstash-udp
+            containerPort: 24555
+            protocol: UDP
+          resources:
+            limits:
+              memory: "1332M"
+            requests:
+              memory: "1332M"
+          command:
+            - logstash
+            - '-f'
+            - '/etc/logstash.conf'
+          volumeMounts:
+            - name: "logstash-config"
+              mountPath: /etc/logstash.conf
+              subPath: logstash.conf
+              readOnly: true
+      volumes:
+        - name: logstash-config
+          configMap:
+            name: logstash-config
+      restartPolicy: "Always"
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    app: "logstash"
+  name: "logstash"
+  namespace: kube-system
+spec:
+  clusterIP: "{{ logstash_clusterip }}"
+  ports:
+  - name: logstash-tcp
+    port: 24555
+    protocol: TCP
+  - name: logstash-udp
+    port: 24555
+    protocol: UDP
+  selector:
+    app: "logstash"

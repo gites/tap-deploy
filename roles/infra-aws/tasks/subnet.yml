@@ -1,0 +1,93 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+# also retry if this step failed - subnet exists but can not set tags
+- name: Create subnet for jumpbox instance
+  ec2_vpc_subnet:
+    access_key: "{{ aws_access_key }}"
+    az: "{{ aws_availability_zone }}"
+    cidr: "{{ jumpbox_subnet }}"
+    region: "{{ aws_region }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    tags: "{{ aws_resource_tags | combine(jumpbox_subnet_name) }}"
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_subnet_jump
+  until: ec2_subnet_jump|success
+  retries: 5
+  delay: 10
+
+- name: Create subnet for k8s masters
+  ec2_vpc_subnet:
+    access_key: "{{ aws_access_key }}"
+    az: "{{ aws_availability_zone }}"
+    cidr: "{{ k8s_master_subnet }}"
+    region: "{{ aws_region }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    tags: "{{ aws_resource_tags | combine(k8s_master_subnet_name) }}"
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_subnet_k8s_master
+  until: ec2_subnet_k8s_master|success
+  retries: 5
+  delay: 10
+
+- name: Create subnet for k8s workers
+  ec2_vpc_subnet:
+    access_key: "{{ aws_access_key }}"
+    az: "{{ aws_availability_zone }}"
+    cidr: "{{ k8s_worker_subnet }}"
+    region: "{{ aws_region }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    tags: "{{ aws_resource_tags | combine(k8s_worker_subnet_name) }}"
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_subnet_k8s_worker
+  until: ec2_subnet_k8s_worker|success
+  retries: 5
+  delay: 10
+
+- name: Create subnet for CDH
+  ec2_vpc_subnet:
+    access_key: "{{ aws_access_key }}"
+    az: "{{ aws_availability_zone }}"
+    cidr: "{{ cdh_subnet }}"
+    region: "{{ aws_region }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    tags: "{{ aws_resource_tags | combine(cdh_subnet_name) }}"
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_subnet_cdh
+  until: ec2_subnet_cdh|success
+  retries: 5
+  delay: 10
+
+- name: Create subnet for ceph
+  ec2_vpc_subnet:
+    access_key: "{{ aws_access_key }}"
+    az: "{{ aws_availability_zone }}"
+    cidr: "{{ ceph_subnet }}"
+    region: "{{ aws_region }}"
+    secret_key: "{{ aws_secret_key }}"
+    state: present
+    tags: "{{ aws_resource_tags | combine(ceph_subnet_name) }}"
+    vpc_id: "{{ ec2_vpc.vpc_id }}"
+  register: ec2_subnet_ceph
+  until: ec2_subnet_ceph|success
+  retries: 5
+  delay: 10

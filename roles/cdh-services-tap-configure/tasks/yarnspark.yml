@@ -1,0 +1,52 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Set spark service properties
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: yarnspark
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'spark_jar_hdfs_path', value: '/user/spark/share/lib/spark-assembly.jar' }
+
+- name: Set spark gateway properties
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: yarnspark
+    role: GATEWAY
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: "log4j_safety_valve", value: "{{ lookup('template', 'SPARK-GATEWAY.log4j.conf.j2') }}" }
+
+- name: Set spark history server properties
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: yarnspark
+    role: SPARK_YARN_HISTORY_SERVER
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: "log4j_safety_valve", value: "{{ lookup('template', 'SPARK-HISTORY_SERVER.log4j.conf.j2') }}" }

@@ -1,0 +1,52 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Create transfer script
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      apiVersion: v1
+      kind: "ConfigMap"
+      metadata:
+        name: "transfer-script"
+      data:
+        transfer-all: >-
+          tar -zcvf backup.tar.gz -C /backup .;
+          lftp -u {{ sftp_user }},{{ sftp_password }} {{ sftp_site }} -e "set sftp:auto-confirm yes; ls; exit;";
+          lftp -u {{ sftp_user }},{{ sftp_password }} {{ sftp_site }} -e "mkdir -p {{ backup_path }}; put backup.tar.gz -o {{ backup_path }}/{{ env_name }}-{{ ansible_date_time.date }}.tar.gz; exit;";
+
+- name: Create transfer Job
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data: "{{ lookup('template', 'transfer-backup.job.j2') }}"
+
+- name: Wait until job finishes
+  uri:
+    url: "http://localhost:8080/apis/extensions/v1beta1/namespaces/default/jobs/transfer/status"
+    method: GET
+    return_content: yes
+    validate_certs: no
+  register: job_status
+  until: job_status.json.status.succeeded is defined
+  retries: 30
+  delay: 10
+
+- name: Delete transfer jobs
+  shell: "/usr/local/bin/kubectl delete job transfer"

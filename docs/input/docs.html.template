@@ -1,0 +1,23 @@
+<html>
+<head>
+</head>
+<body>
+<div id="documentation" style="position: fixed; top: 10em; right: 1em; border: solid 1px black; z-index:99; background: yellow; padding: 1em">
+    <h1 align="center">Click on the role to see its documentation.</h1>
+</div>
+<h1>TAP deploy sequence</h1>
+{{ PASTE_SVG_CONTENT_HERE }}
+<script>
+var roles =
+{{ PASTE_ROLES_DOCUMENTATION_HERE }}
+var x = document.getElementById("documentation");
+function showDocs(msg){
+        doc = roles[msg]
+        if (doc == null){
+            doc = '<h2>Documentation for this role is not ready yet.</h2>'
+        }
+        x.innerHTML = doc
+}
+</script>
+</body>
+</html>

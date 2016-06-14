@@ -1,0 +1,156 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Deploy hdfs dn
+  cdh: 
+    action: deploy_service_worker_nodes
+    password: "{{ cdh_admin_password }}" 
+    service: hdfs
+    host: '{{ item }}'
+  with_items: "{{groups['cdh-worker']}}"
+
+- name: Set hdfs properties
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hdfs
+    name: '{{ item.name }}'
+    value: '{{ item.value }}'
+  with_items:
+    - { name: 'dfs_replication', value: "{{ 3 if (worker_size | int) > 3 else worker_size }}" }
+
+- name: Set default hdfs role properties
+  cdh: 
+    action: set_config 
+    password: "{{ cdh_admin_password }}"
+    entity: role 
+    service: hdfs
+    role: DATANODE
+    name: dfs_data_dir_list
+    value: "{{ hdfs.dirs.data.datanode }}"
+
+- name: Set hdfs role properties for hosts with disk
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: host
+    service: hdfs
+    role: DATANODE
+    name: dfs_data_dir_list
+    value: "{{ cdh_hosts_disks[item].storage | add_suffix('/dn') | join(',') }}"
+    host: "{{ item }}"
+  when: cdh_hosts_disks[item].storage | length > 0
+  with_items: "{{ groups['cdh-worker'] }}"
+
+- name: Set namenode role properties
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role 
+    service: hdfs
+    role: NAMENODE
+    name: '{{ item.name }}'
+    value: '{{ item.value }}'
+  with_items:
+    - { name: 'dfs_name_dir_list', value: "{{ hdfs.dirs.data.namenode }}" }
+
+- name: Set gateway role properties
+  cdh: 
+    action: set_config 
+    password: "{{ cdh_admin_password }}"
+    entity: role 
+    service: hdfs 
+    role: GATEWAY
+    name: '{{ item.name }}'
+    value: '{{ item.value }}'
+  with_items:
+    - { name: 'dfs_client_use_trash', value: "true" }
+ 
+- name: Set secondary namenode role properties
+  cdh: 
+    action: set_config 
+    password: "{{ cdh_admin_password }}"
+    entity: role 
+    service: hdfs
+    role: SECONDARYNAMENODE 
+    name: '{{ item.name }}'
+    value: '{{ item.value }}'
+  with_items:
+    - { name: 'fs_checkpoint_dir_list', value: "{{ hdfs.dirs.data.secondarydatanode }}" }
+
+- name: Set options for minimal deployment
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hdfs
+    role: '{{ item.role }}'
+    name: '{{ item.name }}' 
+    value: '{{ item.value }}'
+  with_items:
+    - { role: 'BALANCER', name: 'balancer_java_heapsize', value: '52428800' }
+    - { role: 'DATANODE', name: 'datanode_java_heapsize', value: '52428800' }
+    - { role: 'FAILOVERCONTROLLER', name: 'failover_controller_java_heapsize', value: '52428800' }
+    - { role: 'GATEWAY', name: 'hdfs_client_java_heapsize', value: '52428800' }
+    - { role: 'HTTPFS', name: 'httpfs_java_heapsize', value: '52428800' }
+    - { role: 'JOURNALNODE', name: 'journalNode_java_heapsize', value: '52428800' }
+    - { role: 'NFSGATEWAY', name: 'nfsgateway_java_heapsize', value: '52428800' }
+    - { role: 'NAMENODE', name: 'namenode_java_heapsize', value: '52428800' }
+    - { role: 'SECONDARYNAMENODE', name: 'secondary_namenode_java_heapsize', value: '52428800' }
+  when: deployment_type == 'minimal'
+
+- name: Deploy hdfs namenode and secondary namenode
+  cdh:
+    action: deploy_hdfs_base
+    password: "{{ cdh_admin_password }}"
+    nn_host: "{{ groups['cdh-master-primary'][0] }}"
+    sn_host: "{{ groups['cdh-master-primary'][0] }}"
+  when: groups['cdh-master-secondary'] | length == 0
+
+- name: Deploy hdfs namenode and secondary namenode with secondary node
+  cdh:
+    action: deploy_hdfs_base
+    password: "{{ cdh_admin_password }}"
+    nn_host: "{{ groups['cdh-master-primary'][0] }}"
+    sn_host: "{{ groups['cdh-master-secondary'][0] }}"
+  when: groups['cdh-master-secondary'] | length == 1
+
+- name: Install httpfs on hdfs
+  cdh: 
+    action: deploy_hdfs_httpfs
+    password: "{{ cdh_admin_password }}"
+    host: "{{ groups['cdh-manager'][0] }}"
+
+- name: Start hdfs service
+  cdh: 
+    action: service
+    password: "{{ cdh_admin_password }}"
+    service: hdfs
+    state: started
+
+- name: Enable ha on hdfs
+  cdh: 
+    action: deploy_hdfs_ha 
+    password: "{{ cdh_admin_password }}"
+    sn_host: "{{ groups['cdh-master-secondary'][0] }}"
+    jn1_host: "{{ groups['cdh-master-primary'][0] }}"
+    jn2_host: "{{ groups['cdh-master-secondary'][0] }}"
+    jn3_host: "{{ groups['cdh-manager'][0] }}"
+    jn_dir: "{{ hdfs.dirs.data.journalnode }}"
+  when: hdfs.ha_enabled

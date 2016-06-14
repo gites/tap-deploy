@@ -1,0 +1,63 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Deploy the hue parcel to all hosts
+  cdh:
+    action: deploy_parcel
+    password: "{{ cdh_admin_password }}"
+    name: HUE_TRUSTEDANALYTICS
+    version: 3.9.0.2
+
+- name: set parcel mirrors
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: cm
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'REMOTE_PARCEL_REPO_URLS', value: '{{ cloudera_parcel_repo }}' }
+  register: parcels_deployed
+
+- name: wait for the parcels to refresh
+  pause:
+    seconds: 20
+  when: parcels_deployed.changed
+
+- name: Set hue service safety valve
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hue
+    name: hue_service_safety_valve
+    value: "{{ lookup('template', 'hue_service_safety_valve.j2') }}"
+
+- wait_for:
+    host: "{{ groups['cdh-manager'][0] }}"
+    port: 8888
+
+- name: Check length for username column in table auth_user
+  shell: mysql -u root --password={{ hostvars[groups['k8s-master'][0]].passwords.databases.database }} -D hue -sN -e "SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'auth_user' AND COLUMN_NAME = 'username';" --socket=/data/main/mysql/mysql.sock
+  register: username_maximum_length
+  changed_when: false
+
+- name: Prepare hue users database to oauth integration
+  shell: mysql -u root --password={{ hostvars[groups['k8s-master'][0]].passwords.databases.database }} -D hue -e 'ALTER TABLE auth_user MODIFY COLUMN username VARCHAR(255) NOT NULL;' --socket=/data/main/mysql/mysql.sock
+  when: username_maximum_length.stdout != "255"

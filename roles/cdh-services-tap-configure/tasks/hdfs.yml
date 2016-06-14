@@ -1,0 +1,71 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Set hdfs service properties
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hdfs
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'dfs_permissions', value: 'true' }
+    - { name: 'dfs_block_local_path_access_user', value: 'impala,hbase,mapred,spark' }
+    - { name: 'hue_kerberos_principal_shortname', value: 'hue' }
+    - { name: 'dfs_namenode_acls_enabled', value: 'true' }
+    - { name: 'core_site_safety_valve', value: '<property><name>hadoop.security.groups.cache.secs</name><value>1</value></property><property><name>hadoop.http.staticuser.user</name><value>mapred</value></property>' }
+    - { name: 'hdfs_service_config_safety_valve', value: '<property><name>dfs.web.ugi</name><value>hdfs</value></property><property><name>dfs.namenode.fs-limits.max-component-length</name><value>4096</value></property>' }
+
+- name: Set namenode role properties
+  cdh: 
+    action: set_config 
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hdfs
+    role: NAMENODE
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'dfs_namenode_handler_count', value: 30 }
+
+- name: Set hdfs role properties
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hdfs
+    role: DATANODE
+    name: '{{ item.name }}'
+    value: '{{ item.value }}'
+  with_items:
+    - { name: 'dfs_datanode_handler_count', value: 30 }
+    - { name: 'dfs_datanode_du_reserved', value: 1073741821 }
+    - { name: 'dfs_datanode_failed_volumes_tolerated', value: 0 }
+
+- name: Set user homedir in hdfs client config
+  cdh:
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: hdfs
+    role: GATEWAY
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { name: 'hdfs_client_config_safety_valve', value: '<property><name>tap.default.homedir</name><value>/user</value></property><property><name>dfs.user.home.dir.prefix</name><value>${tap.default.homedir}</value></property>' }

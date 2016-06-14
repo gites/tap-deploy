@@ -1,0 +1,86 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+### AUTODOC
+#
+# Install Ceph.
+#
+# Ceph is responsible for persistent storage on TAP platform.
+#
+###
+---
+# Defines deployment design and assigns role to server groups
+
+- hosts: mons,osds,clients
+  any_errors_fatal: true
+  tasks:
+    - name: get all devices list
+      set_fact:
+        instance_ceph_devices: "{{ (instances[(inventory_hostname | split('.'))[0]].storage | default({})).devices | default([]) | map(attribute='device') | list }}"
+        ceph_devices_count: 0
+    - name: count osds
+      set_fact:
+        ceph_devices_count: "{{ ceph_devices_count|int + hostvars[item].instance_ceph_devices|length|int }}"
+      delegate_to: "{{ groups['osds'][0] }}"
+      with_items: "{{ groups['osds'] }}"
+
+    - name: set facts for minimal installation type
+      set_fact:
+         journal_size: "{{ ceph_minimal_journal_size }}"
+         ceph_conf_overrides: "{{ ceph_minimal_node_conf }}"
+         osd_directory: True
+         osd_directories:
+           - /var/lib/ceph/osd/data1
+         osd_auto_discovery: False
+         journal_collocation: False
+         devices: []
+         raw_multi_journal: False
+         raw_journal_devices: []
+         osd_pool_default_pg_num: "{{ ceph_minimal_pg }}"
+      when: instance_ceph_devices | length == 0
+    - name: set facts for devices based installation
+      set_fact:
+         journal_size: "{{ ceph_normal_journal_size }}"
+         ceph_conf_overrides: "{{ ceph_normal_node_conf }}"
+         osd_directory: False
+         osd_directories:
+         osd_auto_discovery: False
+         journal_collocation: True
+         devices: "{{ instance_ceph_devices }}"
+         raw_multi_journal: False
+         raw_journal_devices: []
+         osd_pool_default_pg_num: "{{ ceph_normal_pg }}"
+      when: instance_ceph_devices | length > 0
+
+- hosts: mons
+  any_errors_fatal: true
+  become: True
+  roles:
+    - ceph.ceph-mon
+
+- hosts: osds
+  any_errors_fatal: true
+  become: True
+  roles:
+    - ceph-prerequisites
+    - ceph.ceph-osds
+
+- hosts: clients
+  any_errors_fatal: true
+  become: True
+  roles:
+    - ceph.ceph-client
+

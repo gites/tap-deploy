@@ -1,0 +1,65 @@
+apiVersion: "extensions/v1beta1"
+kind: "Job"
+metadata:
+  name: "uaa-postgres-backup"
+spec:
+  template:
+    metadata:
+      labels:
+        backup: "uaa-postgres-backup"
+    spec:
+      containers:
+        - name: "postgres"
+          image: "{{ repository_uri }}/postgres:9.5.3"
+          command: ["/bin/sh", "-c", "sh /usr/bin/backup/pg-backup"]
+          ports:
+            - containerPort: 5432
+              protocol: "TCP"
+          volumeMounts:
+            - mountPath: /backup
+              name: uaa-postgres-backup
+            - mountPath: /usr/bin/backup
+              name: pg-backup
+          resources:
+            limits:
+              # cpu: 100m
+              memory: 512Mi
+            requests:
+              # cpu: 50m
+              memory: 256Mi
+          env:
+            - name: "PGHOST"
+              value: "uaa-postgres"
+            - name: "PGPORT"
+              value: "5432"
+            - name: "PGPASSWORD"
+              valueFrom:
+                configMapKeyRef:
+                  name: "uaa-postgres"
+                  key: "password"
+            - name: "PGUSER"
+              valueFrom:
+                configMapKeyRef:
+                  name: "uaa-postgres"
+                  key: "user"
+            - name: "PGDATABASE"
+              valueFrom:
+                configMapKeyRef:
+                  name: "uaa-postgres"
+                  key: "database"
+          imagePullPolicy: "Always"
+      restartPolicy: "Never"
+      volumes:
+        - name: uaa-postgres-backup
+          rbd:
+            monitors: {{ rbd_monitors }}
+            pool: rbd
+            image: uaa-postgres-backup
+            user: admin
+            secretRef:
+              name: ceph-secret
+            fsType: ext4
+            readOnly: false
+        - name: pg-backup
+          configMap:
+            name: backup-scripts

@@ -1,0 +1,74 @@
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: kube2sky-v11
+  namespace: kube-system
+  labels:
+    app: kube2sky
+    version: v11
+    kubernetes.io/cluster-service: "true"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kube2sky
+        version: v11
+        kubernetes.io/cluster-service: "true"
+    spec:
+      containers:
+      - name: kube2sky
+        args:
+        - --domain={{ local_domain }}
+        - --etcd-cafile=/etc/ssl/ca
+        - --etcd-certfile=/etc/ssl/cert
+        - --etcd-keyfile=/etc/ssl/key
+        - --etcd-servers={{ etcd_skydns_machines }}
+        image: "{{ repository_uri }}/gites/kube2sky:1.14.1"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 8081
+            scheme: HTTP
+          initialDelaySeconds: 30
+          timeoutSeconds: 5
+        volumeMounts:
+          - name: etcd4skydns-ssl
+            mountPath: /etc/ssl
+            readOnly: true
+        resources:
+          limits:
+            # cpu: 100m
+            memory: 128Mi
+          requests:
+            # cpu: 10m
+            memory: 128Mi
+      - name: healthz
+        args:
+        - -cmd=nslookup kubernetes.default.svc.{{ local_domain }} {{ kubedns_clusterip }} >/dev/null
+        - -port=8080
+        image: "{{ repository_uri }}/exechealthz:1.0"
+        ports:
+        - name: kube2sky-api
+          containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+            # cpu: 10m
+            memory: 64Mi
+          requests:
+            # cpu: 10m
+            memory: 64Mi
+      volumes:
+      - name: etcd4skydns-ssl
+        secret:
+          secretName: etcd4skydns-ssl

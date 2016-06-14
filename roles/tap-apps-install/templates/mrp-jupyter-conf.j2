@@ -1,0 +1,73 @@
+worker_processes  1;
+user vcap users;
+#error_log logs/error.log info;
+error_log stderr info;
+pid /tmp/nginx.pid;
+
+daemon off;
+
+env JWT_PUBLIC_KEY;
+env JWT_PUBLIC_KEY_FILE;
+env KRB5_CONFIG;
+env USER_ID;
+env UAA_ADDRESS;
+env UAA_AUTHORIZATION_URI;
+env OAUTH_CLIENT_ID;
+env OAUTH_CLIENT_SECRET;
+env SESSION_ID_SEED;
+
+events {
+  worker_connections 1024;
+}
+
+http {
+  # specify dns resolver address
+  resolver {{ kubedns_clusterip }};
+  proxy_no_cache 1;
+  proxy_cache_bypass 1;
+  proxy_temp_path /tmp/proxy_temp 1 2;
+  client_body_temp_path /tmp 1 2;
+
+  lua_code_cache on;
+  lua_shared_dict session_store 128k;
+  lua_shared_dict public_key 128k;
+
+  lua_package_path "/libs/?.lua;;";
+  init_by_lua '
+    require "mrp-module"
+    mrp = MrpModule(ngx):initialize()
+  ';
+
+  upstream proxy-pass {
+    # server jupyter.localnet:8888;
+    server localhost:8888;
+  }
+
+  server {
+    listen 8080;
+    #rewrite_log on;
+    access_log off;
+
+    set $mrp_kerberos {% if kerberos_enabled %}'on'{% else %}'off'{% endif %};
+    set $mrp_sharing_auth_tokens 'on';
+    set $mrp_authorization 'on';
+
+    location ~ ^/token_key$|^/oauth/token$ {
+      set_by_lua $uaa_address 'return os.getenv("UAA_ADDRESS")';
+      proxy_pass $uaa_address;
+    }
+
+    location / {
+      default_type text/html;
+
+      access_by_lua '
+        mrp:passRequest()
+      ';
+      proxy_pass http://proxy-pass;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_set_header Origin http://proxy-pass;
+    }
+  }
+}

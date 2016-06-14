@@ -1,0 +1,231 @@
+{
+  "template": {
+    "body": [
+      {
+      "componentType": "instance",
+      "persistentVolumeClaims": null,
+      "deployments": [
+        {
+          "kind": "Deployment",
+          "apiVersion": "extensions/v1beta1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "replicas": 1,
+            "selector": {
+              "matchLabels": {
+                "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                "instance_id": "$instance_id"
+              }
+            },
+            "template": {
+              "metadata": {
+                "creationTimestamp": null,
+                "labels": {
+                  "idx_and_short_instance_id": "$idx_and_short_instance_id",
+                  "managed_by": "TAP",
+                  "instance_id": "$instance_id"
+                }
+              },
+              "spec": {
+                "volumes": null,
+                "containers": [
+                  {
+                    "name": "consul",
+                    "image": "$repository_uri/progrium/consul",
+                    "ports": [
+                      {
+                        "containerPort": 53,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 53,
+                        "protocol": "UDP"
+                      },
+                      {
+                        "containerPort": 8300,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 8301,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 8301,
+                        "protocol": "UDP"
+                      },
+                      {
+                        "containerPort": 8302,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 8302,
+                        "protocol": "UDP"
+                      },
+                      {
+                        "containerPort": 8400,
+                        "protocol": "TCP"
+                      },
+                      {
+                        "containerPort": 8500,
+                        "protocol": "TCP"
+                      }
+                    ],
+                    "env": [
+                      {
+                        "name": "MANAGED_BY",
+                        "value": "TAP"
+                      }
+                    ],
+                    "resources": {},
+                    "imagePullPolicy": "IfNotPresent"
+                  }
+                ],
+                "restartPolicy": "Always",
+                "dnsPolicy": "ClusterFirst",
+                "serviceAccountName": ""
+              }
+            },
+            "strategy": {}
+          },
+          "status": {}
+        }
+      ],
+      "services": [
+        {
+          "kind": "Service",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "spec": {
+            "type": "NodePort",
+            "ports": [
+              {
+                "port": 53,
+                "protocol": "TCP",
+                "name":"dns"
+              },
+              {
+                "port": 53,
+                "protocol": "UDP",
+                "name":"dnsudp"
+              },
+              {
+                "port": 8300,
+                "protocol": "TCP",
+                "name":"incoming"
+              },
+              {
+                "port": 8301,
+                "protocol": "TCP",
+                "name":"broadcast"
+              },
+              {
+                "port": 8301,
+                "protocol": "UDP",
+                "name":"broadcastudp"
+              },
+              {
+                "port": 8302,
+                "protocol": "TCP",
+                "name":"wanbroadcast"
+              },
+              {
+                "port": 8302,
+                "protocol": "UDP",
+                "name":"wanbroadcastudp"
+              },
+              {
+                "port": 8400,
+                "protocol": "TCP",
+                "name":"rpc"
+              },
+              {
+                "port": 8500,
+                "protocol": "TCP",
+                "name":"rest"
+              }
+            ],
+            "selector": {
+              "instance_id": "$instance_id"
+            }
+          },
+          "status": {
+            "loadBalancer": {}
+          }
+        }
+      ],
+      "serviceAccounts": [
+        {
+          "kind": "ServiceAccount",
+          "apiVersion": "v1",
+          "metadata": {
+            "name": "$idx_and_short_instance_id",
+            "creationTimestamp": null,
+            "labels": {
+              "plan_id": "$plan_id",
+              "offering_id": "$offering_id",
+              "idx_and_short_instance_id": "$idx_and_short_instance_id",
+              "managed_by": "TAP",
+              "org": "$org",
+              "instance_id": "$instance_id",
+              "space": "$space"
+            }
+          },
+          "secrets": null
+        }
+      ],
+      "secrets": []
+      }
+    ],
+    "hooks": null
+  },
+  "services" : [{
+    "name": "consul",
+    "description": "Consul key-value storage",
+    "metadata":[
+      {"key": "displayName","value": "Consul 0.3.1"},
+      {"key": "imageUrl","value": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAACWFBMVEUAAAD///9WX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3RWX3QkKWyXAAAAx3RSTlMAAAECAwQFBgcICQsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqLC0wMTM0NTc4OTs8PkBBQ0VGR0lKTE1OUFJTVVZXWFlaW1xdXl9gYWJjZGVmZ2lqbm9wcXJzdHV2d3l7fH5/gIGDhIaHi4yNjo+SlJeYmZqbnZ6go6Wmp6iqq6ytrq+wsbO0tba3uLu8vcDBwsPExcbHycrLzM3P0tPU1tfY29ze4OLk5ebn6Orr7e7v8PHy8/T19vf4+fr7/P3+PmU15QAAA0tJREFUeF6l1/9TVFUYgPFXWfYCQpRakJpIrqQAaWVKWShWlomCqVGpVWYqJSmlmqZUWGYRJG1UKqSgZElLX1kR2GVZdn3+rc7Mjnva2XPxcn1+O3PnM3Pn3DPnzivT7iCZJqasFbubu/64ATeDv3R8WPOgmDLiGTXtYVK7dmipI1x8dDRpxoe0v1xn3Q7PbY4B0Hfkpcfv84pIbmn1vm/DAARqp0+GM98cAejZWSgpZa8+FQHoLrPH87sAWh8TQ7PfGwQitXa4Kgh0PyI23f1BlFC5Dd4Sh7FXM8S+skubxYzfBq6Wy6R5xIy3Ap35MoU0ro5DqyWucPF18FviCnt/hst5jpU3Be+GkUVO6b1d+HM1LgrBJnHa+8AOjVvAL447AOxMYl+cWIlzXNBDZ14Sn4RmmUrZesPuChP3yZTSeAt0iFvshxfd4uwIkRznoiArIe/JE4WfhO+NwHeobzDQui7l6sk4w1ClqPYx8YrCe2Gvyb4VBYAfC0RXCXQqmw8MK/wJrDHYXdzqSp7Gy4A2hXMi8KfCl2Bhui2JkaxJdPuDFxeLqmag/ymF/wJPOj6CbjRHJGvPp2sNuz3CkKR3FR1PiDRCvDwdw4ABX0dHjUgbUGvCAQMOoGO1SB0MFqbjkPG1z6C7OUeB5VvnSDr+Gwx3dTW6s6LbdvGL+0VVee67hxXuhQWSXrve7FJtS4FTynqH4DeFW+BpA87/gUTD/3+6Cjiv8CxgTOF3YZcY8r4eACItKScoq5uJdaI6CY0KV8FZMbdo5bIZkpr30XmJRcUSUTg3yqjl+jL4CZ5xjV+Dr1zjWeNE54vzMt44/XISy2dwWJy3DVibxOUw9oBzfBhoSGL5Gr50jldMECrTuGQc1jjXD21cIBrLfvh3nkwpjbOvwDnLJZbFo/C5xyWW54FjHpdYdgCns1xiaQAu3OakTd9gmbFsj0Pw2clsYTvHbbA8Nwx8U2xHM7ffANbbYFnYA0Q/8pmotfkaEG/MtMPqpxIGYu0v5EhqFQf/AehdPumYUNQSAwj791QVJ77czKX1JwIABOo9YsQ638chEkWDv/cP3FrQW285GY1y6zrCpPbrQZvRyJS18p3EUBYL9rU1rS+yOyR30H998NLEWPtHHwAAAABJRU5ErkJggg=="},
+      {"key": "longDescription","value": "A highly-available key value store for shared configuration and service discovery"},
+      {"key": "providerDisplayName","value": "Hashicorp"},
+      {"key": "documentationUrl","value": "http://www.consul.io/"},
+      {"key": "supportUrl","value": "http://www.consul.io/community.html"}
+    ],
+    "bindable": true,
+    "tags": [
+      "consul",
+      "keyvalue",
+      "consul-0.3.1",
+      "k8s"
+    ],
+    "plans": [
+      {
+        "name": "free",
+        "description": "free",
+        "cost": "free"
+      }
+    ]
+  }]
+}

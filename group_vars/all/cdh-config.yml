@@ -1,0 +1,94 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+# cdh version
+cdh_cluster_version: 5.7.1
+
+# check if CDH is enabled
+cdh_enabled: "{{ (groups['cdh-manager'] | length > 0) if 'cdh-manager' in groups else false }}"
+
+sqoop_connectors:
+  - postgresql-9.3-1104.jdbc4.jar
+
+# setting java version
+java_deployed_version: jdk1.8.0_72
+
+cdh_volumes: []
+
+# minimal - set minimal values to xms java applications
+# standard - use default xms configuration
+deployment_type: standard
+
+hdfs_ha_enabled: true
+
+yarn_ha_enabled: true
+
+# hdfs configuration
+hdfs:
+  ha_enabled: "{{ false if deployment_type == 'minimal' else hdfs_ha_enabled }}"
+  dirs:
+    data:
+      datanode: /data/main/dn
+      namenode: /data/main/nn
+      secondarydatanode: /data/main/snn
+      journalnode: /data/main/jn
+
+# yarn configuration
+yarn:
+  ha_enabled: "{{ false if deployment_type == 'minimal' else yarn_ha_enabled }}"
+  dirs:
+    local:
+      nodemanager: /data/main/yl
+
+# database configuration
+database:
+  create_external: true
+  configure: true
+  user: root
+  password:
+  host: "{{ groups['cdh-manager'][0] if cdh_enabled else '' }}"
+  port: 3306
+  databases:
+    metastore:
+      name: metastore
+      password:
+      access: "{{ groups['cdh-manager'][0] if cdh_enabled else '' }}"
+    hue:
+      name: hue
+      password:
+      access: "{{ groups['cdh-manager'][0] if cdh_enabled else '' }}"
+    oozie:
+      name: oozie
+      password:
+      access: "{{ groups['cdh-manager'][0] if cdh_enabled else '' }}"
+    activity_monitor:
+      name: activity_monitor
+      password:
+      access: "{{ groups['cdh-manager'][0] if cdh_enabled else '' }}"
+    reports_manager:
+      name: reports_manager
+      password:
+      access: "{{ groups['cdh-manager'][0] if cdh_enabled else '' }}"
+    scm:
+      name: scm
+      password:
+      access: "{{ groups['cdh-manager'][0] if cdh_enabled else '' }}"
+    sentry:
+      name: sentry
+      password:
+      access: "{{ groups['cdh-manager'][0] if cdh_enabled else '' }}"

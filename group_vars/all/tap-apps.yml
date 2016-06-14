@@ -1,0 +1,58 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+auth_gateway_ip: 10.10.2.120
+user_management_ip: 10.10.2.121
+
+api_service_memory_limit: "384Mi"
+blob_store_memory_limit: "256Mi"
+ca_service_memory_limit: "128Mi"
+catalog_memory_limit: "128Mi"
+console_memory_limit: "256Mi"
+container_broker_memory_limit: "512Mi"
+docker_registry_memory_limit: "256Mi"
+key_counter_memory_limit: "256Mi"
+image_factory_memory_limit: "512Mi"
+host_docker_reserved_memory_limit: "256Mi"
+ingress_memory_limit: "256Mi"
+prometheus_memory_limit: "900Mi"
+grafana_memory_limit: "512Mi"
+monitor_memory_limit: "256Mi"
+platform_snaphot_memory_limit: "672Mi"
+platform_snaphot_postgres_memory_limit: "512Mi"
+uaa_memory_limit: "2048Mi"
+uaa_postgres_memory_limit: "512Mi"
+user_management_memory_limit: "1024Mi"
+workflow_sheduler_memory_limit: "672Mi"
+workflow_sheduler_postgres_memory_limit: "512Mi"
+auth_gateway_memory_limit: "1184Mi"
+data_acquisition_memory_limit: "900Mi"
+data_catalog_memory_limit: "256Mi"
+dataset_publisher_memory_limit: "672Mi"
+downloader_memory_limit: "900Mi"
+metadata_parser_memory_limit: "900Mi"
+nats_memory_limit: "64Mi"
+uploader_memory_limit: "750Mi"
+kube_logging_memory_limit: "512Mi"
+model_catalog_memory_limit: "672Mi"
+platform_tests_memory_limit: "256Mi"
+platform_tests_mongo_memory_limit: "256Mi"
+queue_memory_limit: "512Mi"
+skydns_memory_limit: "128Mi"
+skydns_etcd_memory_limit: "128Mi"
+skydns_exechealthz_memory_limit: "64Mi"
+kube2sky_memory_limit: "128Mi"
+template_repository_memory_limit: "256Mi"

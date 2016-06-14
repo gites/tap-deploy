@@ -1,0 +1,595 @@
+{
+  "broker_name" : "h2o-broker",
+  "template" : {
+    "body": [
+      {
+      "componentType" : "broker",
+      "persistentVolumeClaims" : null,
+      "deployments" : [{
+        "kind" : "Deployment",
+        "apiVersion" : "extensions/v1beta1",
+        "metadata" : {
+          "name" : "h2o-$short_instance_id",
+          "creationTimestamp" : null,
+          "labels" : {
+            "short_instance_id" : "$short_instance_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "space" : "$space"
+          }
+        },
+        "spec" : {
+          "replicas" : 1,
+          "template" : {
+            "metadata" : {
+              "creationTimestamp" : null,
+              "labels" : {
+                "short_instance_id" : "$short_instance_id",
+                "managed_by" : "TAP",
+                "instance_id" : "$instance_id"
+              }
+            },
+            "selector" : {
+              "matchLabels" : {
+                "managed_by" : "TAP",
+                "short_instance_id" : "$short_instance_id",
+                "instance_id" : "$instance_id"
+              }
+            },
+            "spec" : {
+              "volumes": [{
+                "name" : "yarn-conf",
+                "configMap" : {
+                  "name" : "yarn-conf"
+                }
+              }, {
+               "name" : "kerberos-config-volume",
+               "configMap" : {
+                 "name" : "kerberos-config"
+                }
+             }],
+              "containers" : [{
+                "name" : "h2o-broker",
+                "image" : "$repository_uri/h2o-broker:$tap_version",
+                "ports" : [{
+                  "containerPort" : 8080,
+                  "protocol" : "TCP"
+                }],
+                "env" : [{
+                  "name" : "NATS_URL",
+                  "value" : "nats://localhost:4222"
+                }, {
+                  "name" : "BASE_GUID",
+                  "value" : "e74b9df2-717d-429e-9b1a-0ae6933b9381"
+                }, {
+                  "name" : "USER_PASSWORD",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "h2o-broker",
+                      "key" : "user-password"
+                    }
+                  }
+                }, {
+                  "name" : "SERVER_PORT",
+                  "valueFrom" : {
+                    "configMapKeyRef": {
+                      "name": "h2o-broker",
+                      "key": "port"
+                    }
+                  }
+                }, {
+                  "name" : "CATALOG_URL",
+                  "valueFrom" : {
+                    "configMapKeyRef": {
+                      "name" : "catalog",
+                      "key" : "host"
+                    }
+                  }
+                }, {
+                  "name" : "CATALOG_USER",
+                  "valueFrom" : {
+                    "configMapKeyRef": {
+                      "name" : "catalog",
+                      "key" : "user"
+                    }
+                  }
+                }, {
+                  "name" : "CATALOG_PASSWORD",
+                  "valueFrom" : {
+                    "configMapKeyRef": {
+                      "name" : "catalog",
+                      "key" : "pass"
+                    }
+                  }
+                }, {
+                  "name" : "CONTAINERBROKER_URL",
+                  "valueFrom" : {
+                    "configMapKeyRef": {
+                      "name" : "container-broker",
+                      "key" : "host"
+                    }
+                  }
+                }, {
+                  "name" : "CONTAINERBROKER_USER",
+                  "valueFrom" : {
+                    "configMapKeyRef": {
+                      "name" : "container-broker",
+                      "key" : "user"
+                    }
+                  }
+                }, {
+                  "name" : "CONTAINERBROKER_PASSWORD",
+                  "valueFrom" : {
+                    "configMapKeyRef": {
+                      "name" : "container-broker",
+                      "key" : "pass"
+                    }
+                  }
+                }, {
+                  "name" : "TAGS",
+                  "value" : "h2o"
+                }, {
+                  "name" : "SPRING_PROFILES_ACTIVE",
+                  "value" : "cloud"
+                }, {
+                  "name" : "VERSION",
+                  "value" : "0.8.0"
+                }
+                ]
+              }, {
+                "name" : "nats",
+                "image" : "$repository_uri/nats:0.8.1"
+              }, {
+                "name" :  "h2o-provisioner",
+                "image" : "$repository_uri/h2o-provisioner:$tap_version",
+                "ports" : [{
+                  "containerPort" : 9090,
+                  "protocol" : "TCP"
+                }],
+                "volumeMounts" : [{
+                  "mountPath": "/yarn-conf",
+                  "name": "yarn-conf",
+                  "readonly": true
+                }, {
+                  "mountPath": "/etc/krb5.conf",
+                  "name": "kerberos-config-volume",
+                  "subPath": "krb5.conf",
+                  "readonly": false
+                }],
+                "env" : [{
+                  "name" : "DRIVER_PORT_LOWER",
+                  "value" : "30389"
+                }, {
+                  "name": "DRIVER_PORT_UPPER",
+                  "value": "30398"
+                }, {
+                  "name": "SERVER_PORT",
+                  "valueFrom": {
+                    "configMapKeyRef": {
+                      "name" : "h2o-provisioner",
+                      "key" : "port"
+                    }
+                  }
+                }, {
+                  "name" : "DRIVER_IP",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name": "h2o-provisioner",
+                      "key": "driver-ip"
+                    }
+                  }
+                }, {
+                  "name" : "H2O_SUBNET",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name": "h2o-provisioner",
+                      "key": "subnet"
+                    }
+                  }
+                },{
+                  "name" : "KRB_ENABLED",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "kerberos-config",
+                      "key" : "krb.enabled"
+                    }
+                  }
+                },{
+                  "name" : "KRB_PASSWORD",
+                  "valueFrom" : {
+                    "secretKeyRef" : {
+                      "name" : "broker-passwords",
+                      "key" : "broker.kerberos.user.password"
+                    }
+                  }
+                }, {
+                  "name" : "KRB_REALM",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "kerberos-config",
+                      "key" : "krb.realm"
+                    }
+                  }
+                }, {
+                  "name" : "KRB_USER",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "broker-config",
+                      "key" : "broker.system.user"
+                    }
+                  }
+                }, {
+                  "name" : "KRB_KDC",
+                  "valueFrom" : {
+                    "configMapKeyRef" : {
+                      "name" : "kerberos-config",
+                      "key" : "krb.kdc"
+                    }
+                  }
+                }, {
+                  "name" : "HADOOP_CONF_DIR",
+                  "value": "/yarn-conf"
+                }]
+              }
+              ]
+            }
+          }
+        }
+      }
+      ],
+      "services" : [{
+        "kind" : "Service",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id",
+          "creationTimestamp" : null,
+          "labels" : {
+            "short_instance_id" : "$short_instance_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "space" : "$space"
+          }
+        },
+        "spec" : {
+          "type" : "NodePort",
+          "ports" : [{
+            "nodePort": 30097,
+            "port": 8080,
+            "protocol": "TCP",
+            "name": "rest"
+          }, {
+            "nodePort": 30398,
+            "port": 30398,
+            "protocol": "TCP",
+            "name": "yarn1"
+          }, {
+            "nodePort": 30397,
+            "port": 30397,
+            "protocol": "TCP",
+            "name": "yarn2"
+          }, {
+            "nodePort": 30396,
+            "port": 30396,
+            "protocol": "TCP",
+            "name": "yarn3"
+          }, {
+            "nodePort": 30395,
+            "port": 30395,
+            "protocol": "TCP",
+            "name": "yarn4"
+          }, {
+            "nodePort": 30394,
+            "port": 30394,
+            "protocol": "TCP",
+            "name": "yarn5"
+          }, {
+            "nodePort": 30393,
+            "port": 30393,
+            "protocol": "TCP",
+            "name": "yarn6"
+          }, {
+            "nodePort": 30392,
+            "port": 30392,
+            "protocol": "TCP",
+            "name": "yarn7"
+          }, {
+            "nodePort": 30391,
+            "port": 30391,
+            "protocol": "TCP",
+            "name": "yarn8"
+          }, {
+            "nodePort": 30390,
+            "port": 30390,
+            "protocol": "TCP",
+            "name": "yarn9"
+          }, {
+            "nodePort": 30389,
+            "port": 30389,
+            "protocol": "TCP",
+            "name": "yarn10"
+          }
+          ],
+          "selector" : {
+            "instance_id" : "$instance_id"
+          }
+        },
+        "status" : {
+          "loadBalancer" : {}
+        }
+      }
+      ],
+      "serviceAccounts" : [{
+        "kind" : "ServiceAccount",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id",
+          "creationTimestamp" : null,
+          "labels" : {
+            "short_instance_id" : "$short_instance_id",
+            "managed_by" : "TAP",
+            "org" : "$org",
+            "instance_id" : "$instance_id",
+            "space" : "$space"
+          }
+        },
+        "secrets" : null
+      }
+      ],
+      "secrets" : [{
+        "kind" : "Secret",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-broker-credentials",
+          "creationTimestamp" : null,
+          "labels" : {
+            "short_instance_id" : "$short_instance_id",
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "data" : {
+          "password" : "JHJhbmRvbTI=",
+          "username" : "JHJhbmRvbTE="
+        }
+      }
+      ]
+      }
+    ],
+    "hooks" : {
+      "provision" : {
+        "kind" : "Pod",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-provision-$random_dns1",
+          "creationTimestamp" : null,
+          "labels" : {
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "spec" : {
+          "volumes" : null,
+          "containers" : [{
+            "name" : "$short_instance_id-provision",
+            "image" : "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+            "env" : [{
+              "name" : "ACTION",
+              "value" : "CREATE"
+            }, {
+              "name" : "BROKER_SERVICE_NAME",
+              "value" : "$broker_short_instance_id"
+            }, {
+              "name" : "BODY",
+              "value" : "{\"plan_id\": \"$plan_id\", \"service_id\": \"$offering_id\", \"organization_guid\": \"org\", \"space_guid\":\"space\", \"parameters\": { \"userToken\": \"token\" }}"
+            }, {
+              "name" : "EXPECTED_CODE",
+              "value" : "201"
+            }, {
+              "name" : "URL",
+              "value" : "/v2/service_instances/$instance_id"
+            }, {
+              "name" : "BROKER_USERNAME",
+              "value" : "user"
+            }, {
+              "name" : "BROKER_PASSWORD",
+              "valueFrom" : {
+                "configMapKeyRef" : {
+                  "name" : "h2o-broker",
+                  "key" : "user-password"
+                }
+              }
+            }
+            ],
+            "resources" : {},
+            "imagePullPolicy" : "IfNotPresent"
+          }
+          ],
+          "restartPolicy" : "Never",
+          "dnsPolicy" : "ClusterFirst",
+          "serviceAccountName" : ""
+        }
+      },
+      "bind" : {
+        "kind" : "Pod",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-bind-$random_dns1",
+          "creationTimestamp" : null,
+          "labels" : {
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "spec" : {
+          "volumes" : null,
+          "containers" : [{
+            "name" : "$short_instance_id-bind",
+            "image" : "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+            "env" : [{
+              "name" : "ACTION",
+              "value" : "BIND"
+            }, {
+              "name" : "BROKER_SERVICE_NAME",
+              "value" : "$broker_short_instance_id"
+            }, {
+              "name" : "BODY",
+              "value" : "{\"plan_id\": \"$plan_id\", \"service_id\": \"$offering_id\", \"organization_guid\": \"$org\", \"space_guid\":\"$space\", \"app_guid\": \"$binded_instance_id\"}"
+            }, {
+              "name" : "EXPECTED_CODE",
+              "value" : "201"
+            }, {
+              "name" : "URL",
+              "value" : "/v2/service_instances/$instance_id/service_bindings/$short_instance_id$binded_instance_id"
+            }, {
+              "name" : "BROKER_USERNAME",
+              "value" : "user"
+            }, {
+              "name" : "BROKER_PASSWORD",
+              "valueFrom" : {
+                "configMapKeyRef" : {
+                  "name" : "h2o-broker",
+                  "key" : "user-password"
+                }
+              }
+            }
+            ],
+            "resources" : {},
+            "imagePullPolicy" : "IfNotPresent"
+          }
+          ],
+          "restartPolicy" : "Never",
+          "dnsPolicy" : "ClusterFirst",
+          "serviceAccountName" : ""
+        }
+      },
+      "unbind" : {
+        "kind" : "Pod",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-unbind-$random_dns1",
+          "creationTimestamp" : null,
+          "labels" : {
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "spec" : {
+          "volumes" : null,
+          "containers" : [{
+            "name" : "$short_instance_id-unbind",
+            "image" : "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+            "env" : [{
+              "name" : "ACTION",
+              "value" : "UNBIND"
+            }, {
+              "name" : "BROKER_SERVICE_NAME",
+              "value" : "$broker_short_instance_id"
+            }, {
+              "name" : "EXPECTED_CODE",
+              "value" : "200"
+            }, {
+              "name" : "URL",
+              "value" : "/v2/service_instances/$instance_id/service_bindings/$short_instance_id$binded_instance_id?service_id=$offering_id&plan_id=$plan_id"
+            }, {
+              "name" : "BROKER_USERNAME",
+              "value" : "user"
+            }, {
+              "name" : "BROKER_PASSWORD",
+              "valueFrom" : {
+                "configMapKeyRef" : {
+                  "name" : "h2o-broker",
+                  "key" : "user-password"
+                }
+              }
+            }
+            ],
+            "resources" : {},
+            "imagePullPolicy" : "IfNotPresent"
+          }
+          ],
+          "restartPolicy" : "Never",
+          "dnsPolicy" : "ClusterFirst",
+          "serviceAccountName" : ""
+        }
+      },
+      "deprovision" : {
+        "kind" : "Pod",
+        "apiVersion" : "v1",
+        "metadata" : {
+          "name" : "$short_instance_id-deprovision-$random_dns1",
+          "creationTimestamp" : null,
+          "labels" : {
+            "managed_by" : "TAP",
+            "instance_id" : "$instance_id"
+          }
+        },
+        "spec" : {
+          "volumes" : null,
+          "containers" : [{
+            "name" : "$short_instance_id-deprovision",
+            "image" : "$repository_uri/tap-base-cf-broker-connector:curl-latest",
+            "env" : [{
+              "name" : "ACTION",
+              "value" : "DELETE"
+            }, {
+              "name" : "BROKER_SERVICE_NAME",
+              "value" : "$broker_short_instance_id"
+            }, {
+              "name" : "EXPECTED_CODE",
+              "value" : "200"
+            }, {
+              "name" : "URL",
+              "value" : "/v2/service_instances/$instance_id?service_id=$offering_id&plan_id=$plan_id"
+            }, {
+              "name" : "BROKER_USERNAME",
+              "value" : "user"
+            }, {
+              "name" : "BROKER_PASSWORD",
+              "valueFrom" : {
+                "configMapKeyRef" : {
+                  "name" : "h2o-broker",
+                  "key" : "user-password"
+                }
+              }
+            }
+            ],
+            "resources" : {},
+            "imagePullPolicy" : "IfNotPresent"
+          }
+          ],
+          "restartPolicy" : "Never",
+          "dnsPolicy" : "ClusterFirst",
+          "serviceAccountName" : ""
+        }
+      }
+    }
+  },
+  "services" : [{
+    "name" : "h2o-350",
+    "description" : "Comprehensive machine learning platform.",
+    "metadata" : [{
+      "key" : "source_offering_id",
+      "value" : "h2o"
+    }, {
+      "key" : "source_plan_id-free",
+      "value" : "e74b9df2-717d-429e-9b1a-0ae6933b9381-bare-plan"
+    }
+    ],
+    "bindable" : true,
+    "tags" : [
+      "h2o",
+      "data-science",
+      "tools",
+      "machine-learning"
+    ],
+    "plans" : [{
+      "name" : "single",
+      "description" : "Create dedicated H2O 3.5.0 server. Resources used: 1 compute node, 512 MB RAM and storage on your organization's HDFS storage.",
+      "cost" : "free"
+    }
+    ]
+  }
+  ]
+}

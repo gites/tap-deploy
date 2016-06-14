@@ -1,0 +1,180 @@
+kind: "Deployment"
+apiVersion: "extensions/v1beta1"
+metadata:
+  name: "user-management"
+  labels:
+    tap_app_type: CORE
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: user-management
+    spec:
+      containers:
+        - name: "user-management"
+          image: "{{ repository_uri }}/user-management:{{ tap_version }}"
+          volumeMounts:
+            - name: "user-management-ca-pem-volume"
+              mountPath: "/etc/ssl/certs/ca.pem"
+              subPath: ca.pem
+              readOnly: true
+            - name: "user-management-ca-certificates-crt-volume"
+              mountPath: "/etc/ssl/certs/ca-certificates.crt"
+              subPath: ca-certificates.crt
+              readOnly: true
+            - name: "user-management-hashed-ca-volume"
+              mountPath: "/etc/ssl/certs/{{ ca_cert.json['hash'] }}.0"
+              subPath: "{{ ca_cert.json['hash'] }}.0"
+              readOnly: true
+          ports:
+            - containerPort: "80"
+              protocol: "TCP"
+          resources:
+            limits:
+              memory: "{{ user_management_memory_limit }}"
+            requests:
+              memory: "{{ user_management_memory_limit }}"
+          env:
+            - name: SMTP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: "smtp"
+                  key: "host"
+            - name: SMTP_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: "smtp"
+                  key: "port"
+            - name: SMTP_PROTOCOL
+              valueFrom:
+                secretKeyRef:
+                  name: "smtp"
+                  key: "protocol"
+            - name: SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: "smtp"
+                  key: "username"
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "smtp"
+                  key: "password"
+            - name: SMTP_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: "sso"
+                  key: "email"
+            - name: SERVER_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: "user-management"
+                  key: "port"
+            - name: SSO_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: sso
+                  key: email
+            - name: SSO_TOKENURI
+              valueFrom:
+                configMapKeyRef:
+                  name: sso
+                  key: token-uri
+            - name: SSO_AUTHORIZATIONURI
+              valueFrom:
+                configMapKeyRef:
+                  name: sso
+                  key: authorization-uri
+            - name: SSO_CLIENTID
+              valueFrom:
+                configMapKeyRef:
+                  name: sso
+                  key: client-id
+            - name: SSO_CLIENTSECRET
+              valueFrom:
+                configMapKeyRef:
+                  name: sso
+                  key: client-secret
+            - name: SSO_TOKENKEY
+              valueFrom:
+                configMapKeyRef:
+                  name: sso
+                  key: token-key
+            - name: SSO_UAAURI
+              valueFrom:
+                configMapKeyRef:
+                  name: sso
+                  key: uaa-uri
+            - name: CONSOLE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: console
+                  key: host
+            - name: AUTHGATEWAY_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: auth-gateway
+                  key: host
+            - name: REDIS_HOST
+              value: localhost
+            - name: REDIS_PORT
+              value: "6379"
+            - name: SPRING_PROFILES_ACTIVE
+              value: cloud,redis
+            - name: SECURITY_CODES_DB_CIPHER_KEY
+              value: "{{ hostvars[groups['k8s-master'][0]].passwords.user_management.cipher_key}}"
+            - name: SECURITY_CODES_DB_HASH_SALT
+              value: "{{ hostvars[groups['k8s-master'][0]].passwords.user_management.hash_salt}}"
+            - name: CORE_ORG_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: platform
+                  key: core-organization
+            - name: CORE_ORG_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: platform
+                  key: core-org-uuid 
+          imagePullPolicy: "IfNotPresent"
+        - name: redis
+          image: "{{ repository_uri }}/redis:3.0"
+          command: ["redis-server", "--appendonly","yes"]
+          volumeMounts:
+          - mountPath: /data
+            name: user-management-redis
+          imagePullPolicy: "IfNotPresent"
+        - name: "nginx-ssl"
+          image: "{{ repository_uri }}/tap-nginx-dyn-stream:{{ tap_version }}"
+          volumeMounts:
+            - name: "user-management-certkey-volume"
+              mountPath: "/etc/nginx/ssl"
+          ports:
+            - containerPort: 443
+              protocol: "TCP"
+          imagePullPolicy: "Always"
+      volumes:
+      - name: "user-management-ca-pem-volume"
+        secret:
+          secretName: "platform-ca-root-cert"
+      - name: "user-management-ca-certificates-crt-volume"
+        secret:
+          secretName: "platform-ca-roots-bundle"
+      - name: "user-management-hashed-ca-volume"
+        secret:
+          secretName: "platform-ca-root-cert-hashed"
+      - name: "user-management-certkey-volume"
+        secret:
+          secretName: "user-management-certkey"
+      - name: user-management-redis
+        rbd:
+          monitors: [{% for item in groups["mons"]%}"{{ hostvars[item].ansible_host }}:6789"{% if not loop.last %},{% endif %}{% endfor %}]
+          pool: rbd
+          image: user-management-redis
+          user: admin
+          secretRef:
+            name: ceph-secret
+          fsType: ext4
+          readOnly: false
+      restartPolicy: "Always"
+      dnsPolicy: "ClusterFirst"

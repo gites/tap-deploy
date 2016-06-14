@@ -1,0 +1,73 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: Deploy kms on cluster
+  cdh: 
+    action: deploy_service
+    password: "{{ cdh_admin_password }}"
+    name: kms
+
+- name: Change KMS port
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: kms
+    role: KMS
+    name: '{{ item.name }}'
+    value: '{{ item.value }}'
+  with_items:
+    - { name: 'kms_http_port', value: 16600 }
+    - { name: 'kms_admin_port', value: 16601 }
+
+- name: Set options for minimal deployment
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: role
+    service: kms
+    role: "{{ item.role }}"
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { role: 'KMS', name: 'kms_heap_size', value: '67108864' }
+  when: deployment_type == 'minimal'
+
+- name: Deploy kms assign role
+  cdh: 
+    action: deploy_base_roles 
+    password: "{{ cdh_admin_password }}"
+    service: kms
+    host: "{{ groups['cdh-manager'][0] }}"
+
+- name: Start kms service
+  cdh: 
+    action: service
+    password: "{{ cdh_admin_password }}"
+    service: kms
+    state: started
+
+- name: Configure HDFS
+  cdh: 
+    action: set_config
+    password: "{{ cdh_admin_password }}"
+    entity: service
+    service: hdfs
+    name: kms_service
+    value: KMS
+  register: kms_activated

@@ -1,0 +1,306 @@
+#
+# Copyright (c) 2017 Intel Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+
+- name: CONSOLE Create service
+  ignore_errors: yes
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      apiVersion: v1
+      kind: Service
+      metadata:
+        labels:
+          name: console
+        name: console
+      spec:
+        ports:
+          - port: "{{ k8s_api_insecure_port }}"
+        selector:
+          app: console
+        type: ClusterIP
+    state: present
+
+- name: UAA Create PostgreSQL service
+  ignore_errors: yes
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Service"
+      apiVersion: "v1"
+      metadata:
+        name: "uaa-postgres"
+        labels:
+          id: "uaa-postgres"
+      spec:
+        type: "LoadBalancer"
+        selector:
+          id: "uaa-postgres"
+        ports:
+          - port: 5432
+            protocol: "TCP"
+            name: "pg"
+    state: present
+
+- name: UAA Create PostgreSQL ConfigMap
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "ConfigMap"
+      apiVersion: "v1"
+      metadata:
+        name: "uaa-postgres"
+      data:
+        # do not change user value from uaa - it's hard-coded in UAA config down below. We'll change that later on.
+        user: "uaa"
+        password: "{{ hostvars[groups['k8s-master'][0]].passwords.uaa.uaa_postgres_pass }}"
+        database: "uaa"
+        addr: "uaa-postgres"
+    state: present
+
+
+- name: UAA Create PostgreSQL deployment
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data: "{{ lookup('template', 'apps/uaa.postgres.deployment.j2') }}"
+    state: present
+
+- name: UAA Create a ConfigMap instance (raw yaml)
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "ConfigMap"
+      apiVersion: "v1"
+      metadata:
+        name: "uaa-yaml-file-config"
+        labels:
+          id: "uaa-yaml-file-config"
+      data:
+        uaa.yml: "{{ lookup('template', 'uaa.config.j2') }}"
+
+- name: UAA Create secret instance
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Secret"
+      apiVersion: "v1"
+      metadata:
+        name: "uaa-secrets"
+        labels:
+          id: "uaa-secrets"
+      data:
+        admin.client.id: "{{ 'admin' | b64encode }}"
+        admin.client.secret: "{{ hostvars[groups['k8s-master'][0]].passwords.uaa.admin_secret | b64encode }}"
+
+- name: UAA Create a service
+  register: uaa_service_details
+  ignore_errors: yes
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Service"
+      apiVersion: "v1"
+      metadata:
+        name: "uaa"
+        labels:
+          app: "uaa"
+      spec:
+        type: "ClusterIP"
+        selector:
+          app: "uaa"
+        ports:
+          - port: "{{ uaa_insecure_port}}"
+            protocol: "TCP"
+            name: "rest"
+    state: present
+
+- name: UAA Create a deployment
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    inline_data:
+      kind: "Deployment"
+      apiVersion: "extensions/v1beta1"
+      metadata:
+        name: "uaa"
+        labels:
+          tap_app_type: CORE
+      spec:
+        replicas: 1
+        template:
+          metadata:
+            labels:
+              app: uaa
+          spec:
+            containers:
+              -
+                name: "uaa"
+                image: "{{ repository_uri }}/uaa:{{ tap_version }}"
+                resources:
+                  limits:
+                    memory: "{{ uaa_memory_limit }}"
+                  requests:
+                    memory: "{{ uaa_memory_limit }}"
+                env:
+                  - name: SMTP_HOST
+                    valueFrom:
+                      secretKeyRef:
+                        name: "smtp"
+                        key: "host"
+                  - name: SMTP_PORT
+                    valueFrom:
+                      secretKeyRef:
+                        name: "smtp"
+                        key: "port"
+                  - name: SMTP_PROTOCOL
+                    valueFrom:
+                      secretKeyRef:
+                        name: "smtp"
+                        key: "protocol"
+                  - name: SMTP_USER
+                    valueFrom:
+                      secretKeyRef:
+                        name: "smtp"
+                        key: "username"
+                  - name: SMTP_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: "smtp"
+                        key: "password"
+                  - name: SMTP_SENDEREMAIL
+                    valueFrom:
+                      configMapKeyRef:
+                        name: "sso"
+                        key: "email"
+                  - name: SMTP_SENDERNAME
+                    valueFrom:
+                      secretKeyRef:
+                        name: "smtp"
+                        key: "username"
+                  - name: 'assetBaseUrl'
+                    value: '/resources/trustedanalytics'
+                  - name: 'login_branding_companyName'
+                    value: 'Trusted Analytics Platform'
+                  - name: 'login_homeRedirect'
+                    valueFrom:
+                      configMapKeyRef:
+                        key: host
+                        name: console
+                  - name: UAA_DB_CIPHER_KEY
+                    value: "{{ hostvars[groups['k8s-master'][0]].passwords.uaa.cipher_key}}"
+                  - name: UAA_DB_HASH_SALT
+                    value: "{{ hostvars[groups['k8s-master'][0]].passwords.uaa.hash_salt}}"
+                ports:
+                  -
+                    containerPort: "{{ uaa_insecure_port}}"
+                    protocol: "TCP"                
+                imagePullPolicy: "Always"
+                volumeMounts:
+                - name: uaa-config-volume
+                  mountPath: /config/
+                readinessProbe:
+                  failureThreshold: 2
+                  httpGet:
+                    path: /healthz
+                    port: "{{ uaa_insecure_port}}"
+                  scheme: HTTP
+                  initialDelaySeconds: 60
+                  periodSeconds: 10
+                  successThreshold: 1
+                  timeoutSeconds: 8
+                livenessProbe:
+                  failureThreshold: 5
+                  httpGet:
+                    path: /healthz
+                    port: "{{ uaa_insecure_port}}"
+                  scheme: HTTP
+                  initialDelaySeconds: 60
+                  periodSeconds: 60
+                  successThreshold: 1
+                  timeoutSeconds: 20
+            volumes:
+            - name: uaa-config-volume
+              configMap:
+                name: uaa-yaml-file-config
+            restartPolicy: "Always"
+            dnsPolicy: "ClusterFirst"
+    state: present
+
+- name: UAA Create ingress
+  tapkube:
+    api_endpoint: "127.0.0.1:{{ k8s_api_insecure_port }}"
+    insecure: true
+    state: present
+    inline_data:
+      apiVersion: extensions/v1beta1
+      kind: Ingress
+      metadata:
+        name: uaa
+        annotations:
+          useExternalSsl: "{{ enable_external_ssl }}"
+      spec:
+        rules:
+        - host: "uaa.{{ tap_domain_name }}"
+          http:
+            paths:
+            - path: "/oauth/authorize"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
+            - path: "/login"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
+            - path: "/logout"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
+            - path: "/resources"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
+            - path: "/vendor"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
+            - path: "/healthz"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
+            - path: "/home"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
+            - path: "/forgot_password"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
+            - path: "/email_sent"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
+            - path: "/reset_password"
+              backend:
+                serviceName: "uaa"
+                servicePort: "{{ uaa_insecure_port}}"
